@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="com_google_android_gms_fonts_certs">
+        <item>@array/com_google_android_gms_fonts_certs_dev</item>
+        <item>@array/com_google_android_gms_fonts_certs_prod</item>
+    </array>
+    <string-array name="com_google_android_gms_fonts_certs_dev">
+        <item>
+            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBDAUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+            A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNTW91bnRhaW4gVmlldzEQMA4GA1UECgwHR29vZ2xlMRAw
+            DgYDVQQLDAdBbmRyb2lkMRAwDgYDVQQDDAdBbmRyb2lkMSEwHwYJKoZIhvcNAQkBFhphbmRyb2lkQGFu
+            ZHJvaWQuY29tMB4XDTE1MDkxNDIzMTUwM1oXDTM5MDExNDIzMTUwM1owgZQxCzAJBgNVBAYTAlVTMRMw
+            EQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1Nb3VudGFpbiBWaWV3MRAwDgYDVQQKDAdHb29nbGUx
+            EDAOBgNVBAsMB0FuZHJvaWQxEDAOBgNVBAMMB0FuZHJvaWQxITAfBgkqhkiG9w0BCQEWGmFuZHJvaWRA
+            YW5kcm9pZC5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDA3vF38D2NcWcURDzWovgn
+            rJzJ9J28tZqyE2v8QXQjzPlZKCo+0Pl9l9+gqQYk4/24641u+g7N4P9eKz9XW7A4V911/l/4W1mO5f4T
+            xQ7zCq04b0g/f4d7q/ZfN+uQn197fXv9+8fX/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/X
+            v/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+        </item>
+    </string-array>
+    <string-array name="com_google_android_gms_fonts_certs_prod">
+        <item>
+            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBDAUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+            A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNTW91bnRhaW4gVmlldzEQMA4GA1UECgwHR29vZ2xlMRAw
+            DgYDVQQLDAdBbmRyb2lkMRAwDgYDVQQDDAdBbmRyb2lkMSEwHwYJKoZIhvcNAQkBFhphbmRyb2lkQGFu
+            ZHJvaWQuY29tMB4XDTE1MDkxNDIzMTUwM1oXDTM5MDExNDIzMTUwM1owgZQxCzAJBgNVBAYTAlVTMRMw
+            EQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1Nb3VudGFpbiBWaWV3MRAwDgYDVQQKDAdHb29nbGUx
+            EDAOBgNVBAsMB0FuZHJvaWQxEDAOBgNVBAMMB0FuZHJvaWQxITAfBgkqhkiG9w0BCQEWGmFuZHJvaWRA
+            YW5kcm9pZC5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDA3vF38D2NcWcURDzWovgn
+            rJzJ9J28tZqyE2v8QXQjzPlZKCo+0Pl9l9+gqQYk4/24641u+g7N4P9eKz9XW7A4V911/l/4W1mO5f4T
+            xQ7zCq04b0g/f4d7q/ZfN+uQn197fXv9+8fX/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/X
+            v/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+            /Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv/Xv
+        </item>
+    </string-array>
+</resources>

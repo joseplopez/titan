@@ -1,0 +1,41 @@
+# Gradle files
+.gradle/
+build/
+
+# IntelliJ IDEA files
+.idea/
+*.iml
+*.iws
+
+# Android Studio files
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Kotlin files
+.kotlin/
+
+# OS X files
+.DS_Store
+
+# Logs
+*.log
+
+# Generated files
+/build
+/app/build
+/captures
+
+# Signing files
+*.jks
+*.keystore
+*.p12
+
+# Google Services
+google-services.json
+
+# Navigation
+view.xml
+view_nav.xml
+view_final.xml

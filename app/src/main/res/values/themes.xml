@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.Titan" parent="Theme.MaterialComponents.Light" />
+</resources>
