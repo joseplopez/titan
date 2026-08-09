@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -34,14 +37,12 @@ import com.centelles.titan.ui.components.ArcaneButton
 import com.centelles.titan.ui.components.ArcanePanel
 import com.centelles.titan.ui.theme.*
 import com.centelles.titan.util.NumberFormatter
+import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random as KotlinRandom
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,46 +52,46 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
     val density = LocalDensity.current
     val boxSizePx = with(density) { 280.dp.toPx() }
     val halfBoxSizePx = boxSizePx / 2
+
+    // High-precision clock for all animations
+    val animTime by produceState(initialValue = System.currentTimeMillis()) {
+        while (true) {
+            withFrameMillis { value = it }
+        }
+    }
     
-    // Visual Entities
+    // Entity Lists
     val damageNumbers = remember { mutableStateListOf<DamageNumber>() }
     val particles = remember { mutableStateListOf<ShardParticle>() }
     val projectiles = remember { mutableStateListOf<StrikerProjectile>() }
-    
-    // Scale animation for tapping
+
+    // Origin Sync Logic
+    fun getStrikerOffset(index: Int): Offset {
+        val rotationSpeed = 3000 + index * 500
+        val rotation = ( (animTime % rotationSpeed).toFloat() / rotationSpeed) * 360f
+        val r = halfBoxSizePx * 0.9f + (index * 5f)
+        return Offset(
+            x = cos(Math.toRadians(rotation.toDouble())).toFloat() * r,
+            y = sin(Math.toRadians(rotation.toDouble())).toFloat() * r
+        )
+    }
+
+    // Interaction handling
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val idleScale by rememberInfiniteTransition(label = "idleScale").animateFloat(
-        initialValue = 1f,
-        targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "idleScale"
-    )
-
     val tapAnimatable = remember { Animatable(1f) }
     val flashAlpha = remember { Animatable(0f) }
     val shakeOffset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
 
-    // Handle Game Events (Projectiles)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is GameEvent.StrikerHit -> {
-                    // Calculate current orbital position of the specific striker
-                    val i = event.strikerIndex
-                    val timeMillis = System.currentTimeMillis()
-                    val rotationSpeed = 3000 + i * 500
-                    val currentRotation = ( (timeMillis % rotationSpeed).toFloat() / rotationSpeed) * 360f
-                    
-                    val r = halfBoxSizePx * 0.9f + (i * 5f)
-                    val startX = halfBoxSizePx + cos(Math.toRadians(currentRotation.toDouble())).toFloat() * r
-                    val startY = halfBoxSizePx + sin(Math.toRadians(currentRotation.toDouble())).toFloat() * r
-
-                    projectiles.add(StrikerProjectile(System.nanoTime(), Offset(startX, startY), Offset(halfBoxSizePx, halfBoxSizePx), event.damage))
+                    val startPos = getStrikerOffset(event.strikerIndex)
+                    // Random target offset from center of heart
+                    val targetX = (KotlinRandom.nextFloat() * 120f) - 60f
+                    val targetY = (KotlinRandom.nextFloat() * 120f) - 60f
+                    projectiles.add(StrikerProjectile(System.nanoTime(), startPos, Offset(targetX, targetY), event.damage))
                 }
                 else -> {}
             }
@@ -107,17 +108,6 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
         flashAlpha.animateTo(0f, animationSpec = tween(200))
         shakeOffset.animateTo(Offset(KotlinRandom.nextFloat() * 10 - 5, KotlinRandom.nextFloat() * 10 - 5), animationSpec = tween(50))
         shakeOffset.animateTo(Offset.Zero, animationSpec = spring(stiffness = Spring.StiffnessHigh))
-    }
-
-    if (!state.isTutorialCompleted) {
-        AlertDialog(
-            onDismissRequest = { viewModel.completeTutorial() },
-            title = { Text("Welcome to Titan's Heart") },
-            text = { Text("Tap the Heart to knock loose Crystal Shards. Sweep them to bank them, or recruit Sprites to automate the work!") },
-            confirmButton = {
-                Button(onClick = { viewModel.completeTutorial() }) { Text("Got it!") }
-            }
-        )
     }
 
     Scaffold(
@@ -157,24 +147,61 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
 
                 Box(
                     modifier = Modifier.size(280.dp)
-                        .graphicsLayer(scaleX = idleScale * tapAnimatable.value, scaleY = idleScale * tapAnimatable.value, translationX = shakeOffset.value.x, translationY = shakeOffset.value.y)
+                        .graphicsLayer(
+                            scaleX = tapAnimatable.value,
+                            scaleY = tapAnimatable.value,
+                            translationX = shakeOffset.value.x,
+                            translationY = shakeOffset.value.y
+                        )
                         .pointerInput(Unit) {
                             detectTapGestures { offset ->
                                 viewModel.onTitanTap()
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage, offset))
-                                repeat(3) { particles.add(ShardParticle(System.nanoTime() + it, offset)) }
+                                // Convert tap offset (absolute in box) to center-relative
+                                val centerRelativePos = offset - Offset(halfBoxSizePx, halfBoxSizePx)
+                                damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage, centerRelativePos))
+                                repeat(3) { particles.add(ShardParticle(System.nanoTime() + it, centerRelativePos)) }
                             }
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     TitanCanvas(hpFraction = (state.titanHp / state.maxTitanHp).toFloat(), flashAlpha = flashAlpha.value, isBrittle = state.frostSprites > 0, isBurning = state.emberSprites > 0)
-                    SpriteMotes(state, boxSizePx)
-                    projectiles.forEach { proj -> key(proj.id) { StrikerProjectileMote(proj, onHit = { projectiles.remove(proj); damageNumbers.add(DamageNumber(System.nanoTime(), proj.damage, proj.target, isCrit = false)); repeat(2) { particles.add(ShardParticle(System.nanoTime() + it, proj.target)) } }) } }
-                    state.activeCracks.forEach { crack -> Weakspot(crack = crack, boxSizePx = boxSizePx, onTap = { viewModel.onCrackTap(crack.id); haptic.performHapticFeedback(HapticFeedbackType.LongPress); val crackPos = Offset(crack.x * boxSizePx, crack.y * boxSizePx); damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage * 5, crackPos, isCrit = true)); repeat(8) { particles.add(ShardParticle(System.nanoTime() + it, crackPos)) } }) }
-                    damageNumbers.forEach { dn -> key(dn.id) { FloatingDamageText(dn, boxSizePx) { damageNumbers.remove(dn) } } }
-                    particles.forEach { p -> key(p.id) { ShardParticleMote(p, boxSizePx) { particles.remove(p) } } }
-                    ShardPile(state.shardsOnGround, boxSizePx)
+                    
+                    // Sprite Layer
+                    SpriteMotes(state, boxSizePx, animTime)
+                    
+                    // Projectile Layer
+                    projectiles.forEach { proj -> 
+                        key(proj.id) { 
+                            StrikerProjectileMote(proj) { 
+                                projectiles.remove(proj)
+                                damageNumbers.add(DamageNumber(System.nanoTime(), proj.damage, proj.target))
+                                repeat(2) { particles.add(ShardParticle(System.nanoTime() + it, proj.target)) } 
+                            } 
+                        } 
+                    }
+
+                    // Weakspots (Interactive Layer)
+                    state.activeCracks.forEach { crack ->
+                        Weakspot(
+                            crack = crack,
+                            boxSizePx = boxSizePx,
+                            onTap = { 
+                                viewModel.onCrackTap(crack.id)
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                // Normalized to center-relative
+                                val centerRelativePos = Offset((crack.x - 0.5f) * boxSizePx, (crack.y - 0.5f) * boxSizePx)
+                                damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage * 5, centerRelativePos, isCrit = true))
+                                repeat(8) { particles.add(ShardParticle(System.nanoTime() + it, centerRelativePos)) }
+                            }
+                        )
+                    }
+                    
+                    // Feedback Layer
+                    damageNumbers.forEach { dn -> key(dn.id) { FloatingDamageText(dn) { damageNumbers.remove(dn) } } }
+                    particles.forEach { p -> key(p.id) { ShardParticleMote(p) { particles.remove(p) } } }
+                    
+                    ShardPile(state.shardsOnGround)
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -183,8 +210,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                     val hpProgress = (state.titanHp / state.maxTitanHp).toFloat()
                     val animatedHp by animateFloatAsState(targetValue = hpProgress, label = "hpProgress")
                     Box(modifier = Modifier.fillMaxWidth().height(12.dp)) {
-                        LinearProgressIndicator(progress = { animatedHp }, modifier = Modifier.fillMaxSize().clip(CircleShape), color = if (state.emberSprites > 0) CrackMagma else SpectralCyan, trackColor = MysticBlue.copy(alpha = 0.3f)
-                        )
+                        LinearProgressIndicator(progress = { animatedHp }, modifier = Modifier.fillMaxSize().clip(CircleShape), color = if (state.emberSprites > 0) CrackMagma else SpectralCyan, trackColor = MysticBlue.copy(alpha = 0.3f))
                     }
                     Text("${NumberFormatter.format(state.titanHp)} / ${NumberFormatter.format(state.maxTitanHp)}", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.labelSmall, color = MoonMist)
                 }
@@ -236,6 +262,61 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
 }
 
 @Composable
+fun SpriteMotes(state: com.centelles.titan.logic.GameState, boxSizePx: Float, animTime: Long) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val center = Offset(size.width / 2, size.height / 2)
+        
+        // Strikers
+        val visibleStrikers = min(state.strikersCount, 10)
+        repeat(visibleStrikers) { i ->
+            val rotationSpeed = 3000 + i * 500
+            val angle = ( (animTime % rotationSpeed).toFloat() / rotationSpeed) * 360f
+            val r = (size.width / 2) * 0.9f + (i * 5f)
+            val pos = center + Offset(cos(Math.toRadians(angle.toDouble())).toFloat() * r, sin(Math.toRadians(angle.toDouble())).toFloat() * r)
+            drawCircle(brush = Brush.radialGradient(colors = listOf(SpectralCyan, Color.Transparent), center = pos, radius = 10f), center = pos, radius = 10f)
+            drawCircle(color = SpectralCyan, radius = 3f, center = pos)
+        }
+        
+        // Gatherers
+        val visibleGatherers = min(state.gatherersCount, 8)
+        repeat(visibleGatherers) { i ->
+            val rotationSpeed = 2500 + i * 400
+            val angle = ( (animTime % rotationSpeed).toFloat() / rotationSpeed) * 360f
+            val r = 40f + (i * 5f)
+            val pileCenter = center + Offset(0f, size.height * 0.35f)
+            val pos = pileCenter + Offset(cos(Math.toRadians(angle.toDouble())).toFloat() * r, sin(Math.toRadians(angle.toDouble())).toFloat() * r)
+            drawCircle(color = Color(0xFF4CAF50), radius = 2f, center = pos)
+        }
+
+        // Thorns (Patrol)
+        val visibleThorns = min(state.thornSprites, 5)
+        repeat(visibleThorns) { i ->
+            val pos = center + Offset((i * 40f) - 80f, size.height * 0.35f + 20f)
+            drawCircle(color = Color(0xFFFFC107), radius = 4f, center = pos)
+        }
+    }
+}
+
+@Composable
+fun StrikerProjectileMote(proj: StrikerProjectile, onHit: () -> Unit) {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        progress.animateTo(1f, animationSpec = tween(400, easing = FastOutLinearInEasing))
+        onHit()
+    }
+    
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val center = Offset(size.width / 2, size.height / 2)
+        val startAbs = center + proj.start
+        val targetAbs = center + proj.target
+        val currentPos = startAbs + (targetAbs - startAbs) * progress.value
+        
+        drawCircle(color = SpectralCyan, radius = 4f, center = currentPos)
+        drawCircle(color = SpectralCyan.copy(alpha = 0.3f), radius = 10f, center = currentPos)
+    }
+}
+
+@Composable
 fun TitanCanvas(hpFraction: Float, flashAlpha: Float, isBrittle: Boolean, isBurning: Boolean) {
     val infiniteTransition = rememberInfiniteTransition(label = "glow")
     val glowIntensity by infiniteTransition.animateFloat(initialValue = 0.4f, targetValue = 0.8f, animationSpec = infiniteRepeatable(animation = tween(3000, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "glowIntensity")
@@ -269,9 +350,9 @@ fun TitanCanvas(hpFraction: Float, flashAlpha: Float, isBrittle: Boolean, isBurn
 }
 
 @Composable
-fun ShardPile(shards: Double, boxSizePx: Float) {
+fun ShardPile(shards: Double) {
     if (shards <= 0) return
-    val count = min(shards.toInt(), 30)
+    val count = kotlin.math.min(shards.toInt(), 30)
     Canvas(modifier = Modifier.fillMaxSize()) {
         val random = java.util.Random(123)
         val center = Offset(size.width / 2, size.height * 0.85f)
@@ -301,76 +382,54 @@ fun Weakspot(crack: com.centelles.titan.logic.Crack, boxSizePx: Float, onTap: ()
     }
 }
 
-@Composable
-fun SpriteMotes(state: com.centelles.titan.logic.GameState, boxSizePx: Float) {
-    val infiniteTransition = rememberInfiniteTransition(label = "sprites")
-    val halfSize = boxSizePx / 2
-    repeat(min(state.strikersCount, 10)) { i ->
-        val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(3000 + i * 500, easing = LinearEasing)), label = "")
-        Mote(rotation, halfSize * 0.9f + (i * 5f), SpectralCyan)
-    }
-    repeat(min(state.gatherersCount, 8)) { i ->
-        val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(2500 + i * 400, easing = LinearEasing)), label = "")
-        Mote(rotation, 40f + (i * 5f), Color(0xFF4CAF50), centerY = boxSizePx * 0.35f)
-    }
-    repeat(min(state.thornSprites, 5)) { i ->
-        Mote(i * 72f, 60f, Color(0xFFFFC107), centerY = boxSizePx * 0.35f, sizeDp = 4.dp)
-    }
+// Draw a mote inside a Canvas relative to the Canvas center
+fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMote(color: Color, offset: Offset, size: Float = 6f) {
+    drawCircle(brush = Brush.radialGradient(colors = listOf(color, Color.Transparent), center = center + offset, radius = size * 2), center = center + offset, radius = size * 2)
+    drawCircle(color = color, radius = size / 2, center = center + offset)
 }
 
-@Composable
-fun Mote(angle: Float, radius: Float, color: Color, centerX: Float = 0f, centerY: Float = 0f, sizeDp: androidx.compose.ui.unit.Dp = 6.dp) {
-    val x = cos(Math.toRadians(angle.toDouble())).toFloat() * radius + centerX
-    val y = sin(Math.toRadians(angle.toDouble())).toFloat() * radius + centerY
-    Canvas(modifier = Modifier.size(sizeDp).offset { IntOffset(x.toInt(), y.toInt()) }) {
-        drawCircle(brush = Brush.radialGradient(colors = listOf(color, Color.Transparent), center = center, radius = size.width / 2))
-        drawCircle(color = color, radius = 2.dp.toPx(), center = center)
-    }
-}
-
-data class DamageNumber(val id: Long, val amount: Double, val pos: Offset, val isCrit: Boolean = false)
-data class ShardParticle(val id: Long, val startPos: Offset)
+data class DamageNumber(val id: Long, val amount: Double, val centerRelativePos: Offset, val isCrit: Boolean = false)
+data class ShardParticle(val id: Long, val centerRelativePos: Offset)
 data class StrikerProjectile(val id: Long, val start: Offset, val target: Offset, val damage: Double)
 
 @Composable
-fun StrikerProjectileMote(proj: StrikerProjectile, onHit: () -> Unit) {
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        progress.animateTo(1f, animationSpec = tween(400, easing = FastOutLinearInEasing))
-        onHit()
-    }
-    val currentPos = Offset(proj.start.x + (proj.target.x - proj.start.x) * progress.value, proj.start.y + (proj.target.y - proj.start.y) * progress.value)
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        drawCircle(color = SpectralCyan, radius = 4f, center = currentPos)
-        drawCircle(color = SpectralCyan.copy(alpha = 0.3f), radius = 10f, center = currentPos)
-    }
-}
-
-@Composable
-fun FloatingDamageText(dn: DamageNumber, boxSizePx: Float, onAnimationEnd: () -> Unit) {
+fun FloatingDamageText(dn: DamageNumber, onAnimationEnd: () -> Unit) {
     val animatable = remember { Animatable(0f) }
-    val density = LocalDensity.current
     LaunchedEffect(Unit) {
         animatable.animateTo(1f, animationSpec = tween(800, easing = LinearOutSlowInEasing))
         onAnimationEnd()
     }
-    Text(text = NumberFormatter.format(dn.amount), color = if (dn.isCrit) CrackMagma else MoonMist, fontWeight = if (dn.isCrit) FontWeight.ExtraBold else FontWeight.Bold, fontSize = if (dn.isCrit) 20.sp else 16.sp, modifier = Modifier.offset { IntOffset((dn.pos.x - boxSizePx/2).toInt() - 25, (dn.pos.y - boxSizePx/2).toInt() - 50 - (animatable.value * 150).toInt()) }.graphicsLayer(alpha = 1f - animatable.value).zIndex(10f))
+    // Origin is center of heart
+    Text(
+        text = NumberFormatter.format(dn.amount),
+        color = if (dn.isCrit) CrackMagma else MoonMist,
+        fontWeight = if (dn.isCrit) FontWeight.ExtraBold else FontWeight.Bold,
+        fontSize = if (dn.isCrit) 20.sp else 16.sp,
+        modifier = Modifier.offset { 
+            IntOffset(
+                dn.centerRelativePos.x.toInt() - 25, 
+                dn.centerRelativePos.y.toInt() - 50 - (animatable.value * 150).toInt()
+            ) 
+        }
+        .graphicsLayer(alpha = 1f - animatable.value)
+        .zIndex(10f)
+    )
 }
 
 @Composable
-fun ShardParticleMote(p: ShardParticle, boxSizePx: Float, onAnimationEnd: () -> Unit) {
+fun ShardParticleMote(p: ShardParticle, onAnimationEnd: () -> Unit) {
     val progress = remember { Animatable(0f) }
     val randomX = remember { KotlinRandom.nextFloat() * 160 - 80 }
     val randomY = remember { KotlinRandom.nextFloat() * 100 }
-    val density = LocalDensity.current
     LaunchedEffect(Unit) {
         progress.animateTo(1f, animationSpec = tween(600, easing = FastOutSlowInEasing))
         onAnimationEnd()
     }
+    // Origin is center of heart
     Canvas(modifier = Modifier.size(8.dp).offset {
-        val targetXPx = p.startPos.x + (randomX * progress.value)
-        val targetYPx = p.startPos.y + (randomY * progress.value + (progress.value * progress.value * 200))
-        IntOffset((targetXPx - boxSizePx/2).toInt() - 4.dp.toPx().toInt(), (targetYPx - boxSizePx/2).toInt() - 4.dp.toPx().toInt())
+        val targetXPx = p.centerRelativePos.x + (randomX * progress.value)
+        val targetYPx = p.centerRelativePos.y + (randomY * progress.value + (progress.value * progress.value * 200))
+        IntOffset(targetXPx.toInt() - 4.dp.toPx().toInt(), targetYPx.toInt() - 4.dp.toPx().toInt())
     }.graphicsLayer(alpha = 1f - progress.value, scaleX = 1f - progress.value, scaleY = 1f - progress.value)) { drawCircle(color = EmberGold) }
 }
 

@@ -92,20 +92,25 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 activeCracks
             }
 
-            // 3. Strikers deal damage (Each striker shoots once every 2 seconds)
+            // 3. Strikers deal damage (Staggered shots from all strikers)
             var damageDealt = 0.0
-            val maxVisibleStrikers = 10
-            val strikerCount = min(current.strikersCount, maxVisibleStrikers)
+            val maxVisualStrikers = 10
+            val strikerCount = min(current.strikersCount, maxVisualStrikers)
             
-            if (strikerCount > 0 && currentTime - lastStrikerAttackTime >= (2000 / strikerCount)) {
-                val damagePerShot = current.totalDps * (2.0 / strikerCount)
-                // Use a simple counter or random index to pick which striker shoots
-                val strikerIndex = ( (currentTime / 100) % strikerCount).toInt()
-                
-                damageDealt = damagePerShot
-                lastStrikerAttackTime = currentTime
-                // Emit event for visual projectile from a specific striker
-                _events.tryEmit(GameEvent.StrikerHit(damageDealt, strikerIndex))
+            if (strikerCount > 0) {
+                val shotInterval = 2000 / strikerCount
+                if (currentTime - lastStrikerAttackTime >= shotInterval) {
+                    lastStrikerAttackTime = currentTime
+                    // Cycle through strikers
+                    val strikerIndex = ( (currentTime / shotInterval) % strikerCount).toInt()
+                    
+                    // Total damage for the time elapsed since last check (0.1s tick)
+                    // But we only fire when interval passes. To stay accurate:
+                    val damagePerShot = current.totalDps * (shotInterval / 1000.0)
+                    
+                    _events.tryEmit(GameEvent.StrikerHit(damagePerShot, strikerIndex))
+                    damageDealt = damagePerShot
+                }
             }
             
             // 4. Gatherers collect shards
