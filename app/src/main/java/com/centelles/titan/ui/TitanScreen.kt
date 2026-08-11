@@ -318,6 +318,9 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                                 layer = state.currentLayer
                             )
                             
+                            // Elemental Pulses (Fire & Ice)
+                            ElementalPulses(state, animTime)
+                            
                             // Sprite Layer
                             SpriteMotes(state, boxSizePx, animTime)
                             
@@ -455,6 +458,64 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ElementalPulses(state: com.centelles.titan.logic.GameState, animTime: Long) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        // Ember Pulses (Capped at 15 for performance)
+        val visibleEmbers = min(state.emberSprites, 15)
+        repeat(visibleEmbers) { i ->
+            val period = 3000L
+            val localTime = animTime + i * 600L
+            val cycle = localTime / period
+            val r = java.util.Random(cycle + i * 1234L)
+            val alphaProgress = (localTime % period).toFloat() / period
+            val alpha = if (alphaProgress < 0.5f) alphaProgress * 2f else 1f - (alphaProgress - 0.5f) * 2f
+            
+            val x = (r.nextFloat() * 180f) - 90f
+            val y = (r.nextFloat() * 180f) - 90f
+            val pos = center + Offset(x, y)
+            val radius = 35f + r.nextFloat() * 15f
+            
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.Red.copy(alpha = alpha * 0.4f), Color.Transparent),
+                    center = pos,
+                    radius = radius
+                ),
+                center = pos,
+                radius = radius
+            )
+        }
+
+        // Frost Pulses (Capped at 15 for performance)
+        val visibleFrosts = min(state.frostSprites, 15)
+        repeat(visibleFrosts) { i ->
+            val period = 4000L
+            val localTime = animTime + i * 800L
+            val cycle = localTime / period
+            val r = java.util.Random(cycle + i * 5678L)
+            val alphaProgress = (localTime % period).toFloat() / period
+            val alpha = if (alphaProgress < 0.5f) alphaProgress * 2f else 1f - (alphaProgress - 0.5f) * 2f
+            
+            val x = (r.nextFloat() * 180f) - 90f
+            val y = (r.nextFloat() * 180f) - 90f
+            val pos = center + Offset(x, y)
+            val radius = 40f + r.nextFloat() * 15f
+            val iceColor = Color(0xFFADD8E6)
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(iceColor.copy(alpha = alpha * 0.4f), Color.Transparent),
+                    center = pos,
+                    radius = radius
+                ),
+                center = pos,
+                radius = radius
+            )
         }
     }
 }
