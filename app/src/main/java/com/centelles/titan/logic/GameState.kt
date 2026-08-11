@@ -1,5 +1,6 @@
 package com.centelles.titan.logic
 
+import com.centelles.titan.R
 import kotlinx.serialization.Serializable
 import kotlin.math.pow
 import kotlin.math.round
@@ -15,8 +16,8 @@ data class Crack(
 @Serializable
 data class LayerDefinition(
     val level: Int,
-    val name: String,
-    val flavor: String,
+    val nameRes: Int,
+    val flavorRes: Int,
     val hpMultiplier: Double,
     val mechanicalTwist: String = "",
     val finalStage: Int = 10 // Every layer has 10 stages for now
@@ -25,28 +26,28 @@ data class LayerDefinition(
 val LAYERS = listOf(
     LayerDefinition(
         level = 1,
-        name = "The Amber Shell",
-        flavor = "Sun-warmed outer stone, the part the world above has always known.",
+        nameRes = R.string.layer_1_name,
+        flavorRes = R.string.layer_1_flavor,
         hpMultiplier = 1.0
     ),
     LayerDefinition(
         level = 2,
-        name = "The Frozen Marrow",
-        flavor = "Colder, older — the Titan's dreams turn to ice here.",
+        nameRes = R.string.layer_2_name,
+        flavorRes = R.string.layer_2_flavor,
         hpMultiplier = 5.0,
         mechanicalTwist = "brittle_resistance"
     ),
     LayerDefinition(
         level = 3,
-        name = "The Ember Core",
-        flavor = "Something is still burning at its center, after all this time.",
+        nameRes = R.string.layer_3_name,
+        flavorRes = R.string.layer_3_flavor,
         hpMultiplier = 25.0,
         mechanicalTwist = "hp_regen"
     ),
     LayerDefinition(
         level = 4,
-        name = "The Verdant Hollow",
-        flavor = "Root-systems from the world above have grown all the way down, undisturbed for millennia.",
+        nameRes = R.string.layer_4_name,
+        flavorRes = R.string.layer_4_flavor,
         hpMultiplier = 125.0
     )
 )
@@ -54,8 +55,8 @@ val LAYERS = listOf(
 @Serializable
 data class Talent(
     val id: String,
-    val name: String,
-    val description: String,
+    val nameRes: Int,
+    val descriptionRes: Int,
     val tree: TalentTree,
     val baseCost: Double,
     val costMultiplier: Double,
@@ -182,14 +183,14 @@ data class GameState(
 
     companion object {
         val TALENTS = listOf(
-            Talent("starlight_dps", "Celestial Might", "+20% DPS", TalentTree.MIGHT, 1.0, 2.0),
-            Talent("starlight_crit", "Stellar Focus", "+10% Crack Damage", TalentTree.MIGHT, 1.0, 2.0, mapOf("starlight_dps" to 1)),
+            Talent("starlight_dps", R.string.talent_starlight_dps_name, R.string.talent_starlight_dps_desc, TalentTree.MIGHT, 1.0, 2.0),
+            Talent("starlight_crit", R.string.talent_starlight_crit_name, R.string.talent_starlight_crit_desc, TalentTree.MIGHT, 1.0, 2.0, mapOf("starlight_dps" to 1)),
             
-            Talent("starlight_cps", "Astral Greed", "+20% CPS", TalentTree.CRAFT, 1.0, 2.0),
-            Talent("starlight_costs", "Spirit Call", "-5% Sprite Costs", TalentTree.CRAFT, 3.0, 3.0, mapOf("starlight_cps" to 1)),
+            Talent("starlight_cps", R.string.talent_starlight_cps_name, R.string.talent_starlight_cps_desc, TalentTree.CRAFT, 1.0, 2.0),
+            Talent("starlight_costs", R.string.talent_starlight_costs_name, R.string.talent_starlight_costs_desc, TalentTree.CRAFT, 3.0, 3.0, mapOf("starlight_cps" to 1)),
             
-            Talent("starlight_capacity", "Expansive Groves", "+5 Sprite Capacity", TalentTree.WILD, 2.0, 2.5),
-            Talent("starlight_elements", "Primordial Aura", "+15% Elemental Potency", TalentTree.WILD, 5.0, 3.0, mapOf("starlight_capacity" to 1))
+            Talent("starlight_capacity", R.string.talent_starlight_capacity_name, R.string.talent_starlight_capacity_desc, TalentTree.WILD, 2.0, 2.5),
+            Talent("starlight_elements", R.string.talent_starlight_elements_name, R.string.talent_starlight_elements_desc, TalentTree.WILD, 5.0, 3.0, mapOf("starlight_capacity" to 1))
         )
     }
 

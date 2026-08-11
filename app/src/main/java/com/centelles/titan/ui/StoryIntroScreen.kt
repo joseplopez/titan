@@ -11,10 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.centelles.titan.R
 import com.centelles.titan.ui.components.ArcaneButton
 import com.centelles.titan.ui.theme.EmberGold
 import com.centelles.titan.ui.theme.MoonMist
@@ -25,11 +27,11 @@ import kotlinx.coroutines.delay
 fun StoryIntroScreen(onFinished: () -> Unit) {
     var step by remember { mutableIntStateOf(0) }
     val storyParagraphs = listOf(
-        "Before the world had a name, a Titan walked it.",
-        "It did not wage war, nor seek dominion. It simply slept — curled beneath the mountains, dreaming a dream so vast that stars formed in its wake. Over eons, its dreaming heart crystallized: a core of living crystal, humming with the memory of everything it had ever seen.",
-        "The mountains wore away. Kingdoms rose atop its shoulders without ever knowing what slept beneath. And in time, the last of the old fey folk — small, curious, and utterly fearless — found the crack in the stone that led to its heart.",
-        "They call themselves Sprites now. They do not know if waking the Titan will end the world, or begin a new one.",
-        "They intend to find out."
+        stringResource(R.string.before_the_world_had_a_name_a_titan_walked_it),
+        stringResource(R.string.story_paragraph_2),
+        stringResource(R.string.story_paragraph_3),
+        stringResource(R.string.story_paragraph_4),
+        stringResource(R.string.story_paragraph_5)
     )
 
     LaunchedEffect(Unit) {
@@ -67,7 +69,7 @@ fun StoryIntroScreen(onFinished: () -> Unit) {
                 enter = fadeIn(tween(1500)) + scaleIn(tween(1500), initialScale = 0.8f)
             ) {
                 Text(
-                    text = "TITAN'S HEART",
+                    text = stringResource(R.string.titans_heart),
                     style = MaterialTheme.typography.displayLarge,
                     color = EmberGold,
                     textAlign = TextAlign.Center,
@@ -95,7 +97,7 @@ fun StoryIntroScreen(onFinished: () -> Unit) {
                     onClick = onFinished,
                     containerColor = EmberGold
                 ) {
-                    Text("Begin", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.begin), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

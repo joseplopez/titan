@@ -17,9 +17,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.centelles.titan.R
 import com.centelles.titan.logic.GameViewModel
 import com.centelles.titan.ui.components.ArcaneButton
 import com.centelles.titan.ui.components.ArcanePanel
@@ -39,10 +41,10 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                     containerColor = Color.Transparent,
                     titleContentColor = MoonMist
                 ),
-                title = { Text("Upgrades & Store", style = MaterialTheme.typography.titleLarge) },
+                title = { Text(stringResource(R.string.upgrades_and_store), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MoonMist)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = MoonMist)
                     }
                 },
                 actions = {
@@ -66,13 +68,13 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                SectionHeader("Store", EmberGold)
+                SectionHeader(stringResource(R.string.store), EmberGold)
             }
             
             item {
                 UpgradeItem(
-                    name = "Remove Ads",
-                    description = "Permanent 2X Boost button.",
+                    name = stringResource(R.string.remove_ads),
+                    description = stringResource(R.string.remove_ads_desc),
                     level = if (state.adsRemoved) 1 else 0,
                     costString = "$2.99",
                     canAfford = true,
@@ -82,13 +84,13 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
             }
 
             item {
-                SectionHeader("Buildings", SpectralCyan)
+                SectionHeader(stringResource(R.string.buildings), SpectralCyan)
             }
             
             item {
                 UpgradeItem(
-                    name = "Grove",
-                    description = "Increases Sprite cap by 10.",
+                    name = stringResource(R.string.grove),
+                    description = stringResource(R.string.grove_desc),
                     level = state.grovesCount,
                     costString = NumberFormatter.format(state.getGroveCost()),
                     canAfford = state.shardsBanked >= state.getGroveCost(),
@@ -98,13 +100,13 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
             }
 
             item {
-                SectionHeader("Titan Upgrades", SpectralCyan)
+                SectionHeader(stringResource(R.string.titan_upgrades), SpectralCyan)
             }
 
             item {
                 UpgradeItem(
-                    name = "Sharpened Focus",
-                    description = "+10% click damage.",
+                    name = stringResource(R.string.sharpened_focus),
+                    description = stringResource(R.string.sharpened_focus_desc),
                     level = state.upgrades.getOrDefault("click_power", 0),
                     costString = NumberFormatter.format(state.getUpgradeCost("click_power")),
                     canAfford = state.shardsBanked >= state.getUpgradeCost("click_power"),
@@ -114,13 +116,13 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
             }
 
             item {
-                SectionHeader("Enchanted Garden", SpectralCyan)
+                SectionHeader(stringResource(R.string.enchanted_garden), SpectralCyan)
             }
 
             item {
                 UpgradeItem(
-                    name = "Unlock Thorn Sprites",
-                    description = "Master collectors.",
+                    name = stringResource(R.string.unlock_thorn_sprites),
+                    description = stringResource(R.string.unlock_thorn_sprites_desc),
                     level = if (state.isUpgradeUnlocked("unlock_thorn")) 1 else 0,
                     costString = NumberFormatter.format(state.getUpgradeCost("unlock_thorn")),
                     canAfford = state.shardsBanked >= state.getUpgradeCost("unlock_thorn"),
@@ -132,8 +134,8 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
 
             item {
                 UpgradeItem(
-                    name = "Unlock Ember Sprites",
-                    description = "Fiery DOT damage.",
+                    name = stringResource(R.string.unlock_ember_sprites),
+                    description = stringResource(R.string.unlock_ember_sprites_desc),
                     level = if (state.isUpgradeUnlocked("unlock_ember")) 1 else 0,
                     costString = NumberFormatter.format(state.getUpgradeCost("unlock_ember")),
                     canAfford = state.shardsBanked >= state.getUpgradeCost("unlock_ember"),
@@ -145,8 +147,8 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
 
             item {
                 UpgradeItem(
-                    name = "Unlock Frost Sprites",
-                    description = "Damage amplifier.",
+                    name = stringResource(R.string.unlock_frost_sprites),
+                    description = stringResource(R.string.unlock_frost_sprites_desc),
                     level = if (state.isUpgradeUnlocked("unlock_frost")) 1 else 0,
                     costString = NumberFormatter.format(state.getUpgradeCost("unlock_frost")),
                     canAfford = state.shardsBanked >= state.getUpgradeCost("unlock_frost"),
@@ -157,13 +159,13 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
             }
 
             item {
-                SectionHeader("Sprite Upgrades", SpectralCyan)
+                SectionHeader(stringResource(R.string.sprite_upgrades), SpectralCyan)
             }
 
             item {
                 UpgradeItem(
-                    name = "Sprite Academy",
-                    description = "+10% Sprite efficiency.",
+                    name = stringResource(R.string.sprite_academy),
+                    description = stringResource(R.string.sprite_academy_desc),
                     level = state.upgrades.getOrDefault("sprite_efficiency", 0),
                     costString = NumberFormatter.format(state.getUpgradeCost("sprite_efficiency")),
                     canAfford = state.shardsBanked >= state.getUpgradeCost("sprite_efficiency"),
@@ -211,7 +213,7 @@ fun UpgradeItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MoonMist)
                 Text(description, fontSize = 12.sp, color = MoonMist.copy(alpha = 0.7f))
-                Text("Level: $level", fontSize = 12.sp, color = SpectralCyan)
+                Text(stringResource(R.string.level_label, level), fontSize = 12.sp, color = SpectralCyan)
             }
             ArcaneButton(
                 onClick = {
@@ -225,7 +227,7 @@ fun UpgradeItem(
                 if (enabled) {
                     Text(costString, style = MaterialTheme.typography.labelSmall)
                 } else {
-                    Text("Maxed", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.maxed), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

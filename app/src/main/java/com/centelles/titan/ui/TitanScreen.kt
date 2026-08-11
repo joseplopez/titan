@@ -28,12 +28,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.centelles.titan.R
 import com.centelles.titan.logic.GameEvent
 import com.centelles.titan.logic.GameViewModel
 import com.centelles.titan.ui.components.ArcaneButton
@@ -71,6 +73,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
     val damageNumbers = remember { mutableStateListOf<DamageNumber>() }
     val particles = remember { mutableStateListOf<ShardParticle>() }
     val projectiles = remember { mutableStateListOf<StrikerProjectile>() }
+    val landedShards = remember { mutableStateListOf<Offset>() }
 
     // Origin Sync Logic
     fun getStrikerOffset(index: Int): Offset {
@@ -117,17 +120,90 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
         shakeOffset.animateTo(Offset.Zero, animationSpec = spring(stiffness = Spring.StiffnessHigh))
     }
 
-    // Thorn Collision Detection
+    // Sync Landed Shards with State
+    LaunchedEffect(state.shardsOnGround) {
+        val targetCount = min(state.shardsOnGround.toInt(), 500)
+        if (landedShards.size < targetCount) {
+            repeat(targetCount - landedShards.size) {
+                landedShards.add(Offset(KotlinRandom.nextFloat() * groundAreaWidthPx - groundAreaWidthPx / 2, KotlinRandom.nextFloat() * with(density) { 80.dp.toPx() }))
+            }
+        } else if (landedShards.size > targetCount + 50) {
+            repeat(landedShards.size - targetCount) { landedShards.removeAt(0) }
+        }
+    }
+
+    // Thorn and Gatherer Collision Detection (Cleaning up landed shards)
+    LaunchedEffect(animTime) {
+        if ((state.thornSprites > 0 || state.gatherersCount > 0) && landedShards.isNotEmpty()) {
+            val visibleThorns = state.thornSprites
+            val visibleGatherers = state.gatherersCount
+            val groundAreaHeight = with(density) { 80.dp.toPx() }
+            
+            val cleanPaths = mutableListOf<Offset>()
+            
+            repeat(visibleThorns) { i ->
+                val patrolWidth = groundAreaWidthPx * 1.3f
+                val hSpeed1 = 0.0012f + (i * 0.0001f)
+                val hSpeed2 = 0.0007f + (i * 0.00005f)
+                val vSpeed1 = 0.0009f + (i * 0.00008f)
+                val vSpeed2 = 0.0005f + (i * 0.00004f)
+                
+                // Acceleration factors that change every 4 seconds
+                val timeBlock = animTime / 4000
+                val r = java.util.Random(timeBlock + i * 100)
+                val hAccelFactor = 1.5f + r.nextFloat() * 1.0f
+                val vAccelFactor = 1.2f + r.nextFloat() * 1.0f
+                
+                val hAccel = sin(animTime * 0.0004f + i * 1.1f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.0003f + i * 0.7f).toFloat() * vAccelFactor
+                
+                val x = (sin(animTime * hSpeed1 + i * 2.1f + hAccel) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
+                val y = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.4f) * 0.3f) * 0.8f)
+                cleanPaths.add(Offset(x.toFloat(), y.toFloat()))
+            }
+            
+            repeat(visibleGatherers) { i ->
+                val patrolWidth = groundAreaWidthPx * 1.35f
+                val hSpeed1 = 0.0008f + (i * 0.0001f)
+                val hSpeed2 = 0.0005f + (i * 0.00007f)
+                val vSpeed1 = 0.0005f + (i * 0.00012f)
+                val vSpeed2 = 0.0003f + (i * 0.00006f)
+                
+                // Acceleration factors that change every 5 seconds
+                val timeBlock = animTime / 5000
+                val r = java.util.Random(timeBlock + i * 200)
+                val hAccelFactor = 1.8f + r.nextFloat() * 1.2f
+                val vAccelFactor = 1.5f + r.nextFloat() * 1.0f
+                
+                val hAccel = sin(animTime * 0.00035f + i * 0.9f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.00025f + i * 1.4f).toFloat() * vAccelFactor
+                
+                val x = (sin(animTime * hSpeed1 + i * 0.8f + hAccel) * 0.6f + sin(animTime * hSpeed2 + i * 1.9f) * 0.4f) * patrolWidth / 2
+                val y = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.4f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
+                cleanPaths.add(Offset(x.toFloat(), y.toFloat()))
+            }
+
+            val toRemove = mutableListOf<Offset>()
+            val shardsSnapshot = landedShards.toList()
+            shardsSnapshot.forEach { shard ->
+                if (cleanPaths.any { sprite -> (shard - sprite).getDistance() < 20f }) {
+                    toRemove.add(shard)
+                }
+            }
+            
+            if (toRemove.isNotEmpty()) {
+                landedShards.removeAll(toRemove)
+            }
+        }
+    }
+
+    // Thorn Collision Detection (FALLING PARTICLES - keeping this for cleanup)
     LaunchedEffect(animTime) {
         if (state.thornSprites > 0 && particles.isNotEmpty()) {
             val visibleThorns = min(state.thornSprites, 5)
-            // Height of GroundArea is 80dp
-            // Spacer before GroundArea is 16dp
-            // Half-height of Titan Box is 140dp
-            // distance from center of heart to top of GroundArea = 140dp + 16dp = 156dp
             val groundAreaTopFromCenter = with(density) { 156.dp.toPx() }
             val groundAreaHeight = with(density) { 80.dp.toPx() }
-            val fallDistance = with(density) { 400.dp.toPx() }
+            val fallDistance = groundAreaTopFromCenter + groundAreaHeight / 2
             
             val thorns = (0 until visibleThorns).map { i ->
                 val patrolWidth = groundAreaWidthPx * 0.85f
@@ -136,33 +212,27 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 val vSpeed1 = 0.0009f + (i * 0.00008f)
                 val vSpeed2 = 0.0005f + (i * 0.00004f)
                 
-                val hPhase1 = i * 2.1f
-                val hPhase2 = i * 0.7f
-                val vPhase1 = i * 1.3f
-                val vPhase2 = i * 0.4f
-                
-                val x = (sin(animTime * hSpeed1 + hPhase1) * 0.7f + sin(animTime * hSpeed2 + hPhase2) * 0.3f) * patrolWidth / 2
-                val yInGround = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + vPhase1) * 0.7f + sin(animTime * vSpeed2 + vPhase2) * 0.3f) * 0.4f)
-                val yRelativetoHeart = groundAreaTopFromCenter + yInGround
-                Offset(x.toFloat(), yRelativetoHeart.toFloat())
+                val x = (sin(animTime * hSpeed1 + i * 2.1f) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
+                val yInGround = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f) * 0.7f + sin(animTime * vSpeed2 + i * 0.4f) * 0.3f) * 0.4f)
+                Offset(x.toFloat(), groundAreaTopFromCenter + yInGround.toFloat())
             }
 
             val toRemove = mutableListOf<ShardParticle>()
-            val currentParticles = particles.toList()
-            currentParticles.forEach { p ->
+            val particleList = particles.toList()
+            particleList.forEach { p ->
                 val t = animTime - p.startTime
-                val progress = (t.toFloat() / 800f).coerceIn(0f, 1f) // Matches new 800ms duration
+                val progress = (t.toFloat() / 800f).coerceIn(0f, 1f)
                 val currentX = p.centerRelativePos.x + (p.randomX * progress)
                 val currentY = p.centerRelativePos.y + (progress * fallDistance)
                 val pPos = Offset(currentX, currentY)
                 
-                // Reduced radius for less aggressive collection
-                if (thorns.any { tPos -> (pPos - tPos).getDistance() < 50f }) {
+                if (thorns.any { tPos -> (pPos - tPos).getDistance() < 300f }) {
                     toRemove.add(p)
                 }
             }
             
             if (toRemove.isNotEmpty()) {
+                Log.d("TitanCollision", "Removing ${toRemove.size} particles from ${particles.size}. FirstPartY: ${particleList.firstOrNull()?.centerRelativePos?.y}")
                 particles.removeAll(toRemove)
             }
         }
@@ -173,10 +243,10 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = MoonMist),
-                title = { Text("Titan's Heart", style = MaterialTheme.typography.titleLarge) },
+                title = { Text(stringResource(R.string.titans_heart), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateToConstellation) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = EmberGold)
+                        Icon(Icons.Default.Star, contentDescription = stringResource(R.string.stars), tint = EmberGold)
                     }
                 },
                 actions = {
@@ -184,14 +254,14 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                         ArcanePanel(modifier = Modifier.clickable { onNavigateToConstellation() }) {
                             Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                                 Text("${String.format(Locale.US, "%.1f", state.starlight)}⭐", color = SpectralCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                Text("Stars", fontSize = 8.sp, color = MoonMist.copy(alpha = 0.7f))
+                                Text(stringResource(R.string.stars), fontSize = 8.sp, color = MoonMist.copy(alpha = 0.7f))
                             }
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         ArcanePanel {
                             Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                                 Text(NumberFormatter.format(state.shardsBanked), color = EmberGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                                Text("Shards", fontSize = 10.sp, color = MoonMist.copy(alpha = 0.7f))
+                                Text(stringResource(R.string.shards), fontSize = 10.sp, color = MoonMist.copy(alpha = 0.7f))
                             }
                         }
                     }
@@ -204,8 +274,8 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
 
             Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    StatItem("DPS", NumberFormatter.format(state.totalDps))
-                    StatItem("CPS", NumberFormatter.format(state.totalCps))
+                    StatItem(stringResource(R.string.dps), NumberFormatter.format(state.totalDps))
+                    StatItem(stringResource(R.string.cps), NumberFormatter.format(state.totalCps))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -295,7 +365,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                             }
                         }
                         
-                        GroundArea(state, animTime, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        GroundArea(state, animTime, landedShards, modifier = Modifier.fillMaxWidth().height(80.dp))
                     }
                     
                     // Feedback Layer (Unclipped)
@@ -308,7 +378,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Stage ${state.awakeningStage + 1}", style = MaterialTheme.typography.labelLarge, color = EmberGold, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(stringResource(R.string.stage_label, state.awakeningStage + 1), style = MaterialTheme.typography.labelLarge, color = EmberGold, modifier = Modifier.padding(bottom = 8.dp))
 
                     val hpProgress = (state.titanHp / state.maxTitanHp).toFloat()
                     val animatedHp by animateFloatAsState(targetValue = hpProgress, label = "hpProgress")
@@ -334,7 +404,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 Spacer(modifier = Modifier.weight(0.1f))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ArcaneButton(onClick = onNavigateToUpgrades, modifier = Modifier.weight(1f), containerColor = MysticBlue) { Text("Upgrades", style = MaterialTheme.typography.labelSmall) }
+                    ArcaneButton(onClick = onNavigateToUpgrades, modifier = Modifier.weight(1f), containerColor = MysticBlue) { Text(stringResource(R.string.upgrades), style = MaterialTheme.typography.labelSmall) }
                     
                     val canDescend = state.canDescend()
                     ArcaneButton(
@@ -345,7 +415,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                if (canDescend) "The Descent" else "Reach Stage ${state.currentLayerDef.finalStage}",
+                                if (canDescend) stringResource(R.string.the_descent) else stringResource(R.string.reach_stage, state.currentLayerDef.finalStage),
                                 style = MaterialTheme.typography.labelSmall,
                                 textAlign = TextAlign.Center
                             )
@@ -355,28 +425,28 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                         }
                     }
 
-                    ArcaneButton(onClick = { viewModel.onManualCollect(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }, modifier = Modifier.weight(1f), containerColor = EmberGold) { Text("Sweep", style = MaterialTheme.typography.labelSmall) }
+                    ArcaneButton(onClick = { viewModel.onManualCollect(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }, modifier = Modifier.weight(1f), containerColor = EmberGold) { Text(stringResource(R.string.sweep), style = MaterialTheme.typography.labelSmall) }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 ArcanePanel(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Recruit Sprites (${state.currentSpriteCount}/${state.spriteCapacity})", style = MaterialTheme.typography.labelSmall, color = MoonMist)
+                        Text(stringResource(R.string.recruit_sprites_label, state.currentSpriteCount, state.spriteCapacity), style = MaterialTheme.typography.labelSmall, color = MoonMist)
                         Spacer(modifier = Modifier.height(8.dp))
                         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RecruitButton("Striker", state.strikersCount, state.getStrikerCost(), state.shardsBanked >= state.getStrikerCost() && state.currentSpriteCount < state.spriteCapacity, SpectralCyan) { viewModel.recruitStriker() }
-                                RecruitButton("Gatherer", state.gatherersCount, state.getGathererCost(), state.shardsBanked >= state.getGathererCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF4CAF50)) { viewModel.recruitGatherer() }
+                                RecruitButton(stringResource(R.string.striker), state.strikersCount, state.getStrikerCost(), state.shardsBanked >= state.getStrikerCost() && state.currentSpriteCount < state.spriteCapacity, SpectralCyan) { viewModel.recruitStriker() }
+                                RecruitButton(stringResource(R.string.gatherer), state.gatherersCount, state.getGathererCost(), state.shardsBanked >= state.getGathererCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF4CAF50)) { viewModel.recruitGatherer() }
                             }
                             if (state.isUpgradeUnlocked("unlock_ember") || state.isUpgradeUnlocked("unlock_frost") || state.isUpgradeUnlocked("unlock_thorn")) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (state.isUpgradeUnlocked("unlock_ember")) RecruitButton("Ember", state.emberSprites, state.getEmberCost(), state.shardsBanked >= state.getEmberCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFFFF5722)) { viewModel.recruitEmber() }
-                                    if (state.isUpgradeUnlocked("unlock_frost")) RecruitButton("Frost", state.frostSprites, state.getFrostCost(), state.shardsBanked >= state.getFrostCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF03A9F4)) { viewModel.recruitFrost() }
+                                    if (state.isUpgradeUnlocked("unlock_ember")) RecruitButton(stringResource(R.string.ember), state.emberSprites, state.getEmberCost(), state.shardsBanked >= state.getEmberCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFFFF5722)) { viewModel.recruitEmber() }
+                                    if (state.isUpgradeUnlocked("unlock_frost")) RecruitButton(stringResource(R.string.frost), state.frostSprites, state.getFrostCost(), state.shardsBanked >= state.getFrostCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF03A9F4)) { viewModel.recruitFrost() }
                                 }
                                 if (state.isUpgradeUnlocked("unlock_thorn")) {
                                     Row(modifier = Modifier.fillMaxWidth()) {
-                                        RecruitButton("Thorn", state.thornSprites, state.getThornCost(), state.shardsBanked >= state.getThornCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFFFFC107)) { viewModel.recruitThorn() }
+                                        RecruitButton(stringResource(R.string.thorn), state.thornSprites, state.getThornCost(), state.shardsBanked >= state.getThornCost() && state.currentSpriteCount < state.spriteCapacity, Color.Red) { viewModel.recruitThorn() }
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
@@ -489,65 +559,67 @@ fun TitanCanvas(
 }
 
 @Composable
-fun GroundArea(state: com.centelles.titan.logic.GameState, animTime: Long, modifier: Modifier = Modifier) {
-    val shards = state.shardsOnGround
+fun GroundArea(state: com.centelles.titan.logic.GameState, animTime: Long, landedShards: List<Offset>, modifier: Modifier = Modifier) {
     Box(modifier = modifier) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
             
-            // Draw Shards (Rectangular shape, higher density)
-            if (shards > 0) {
-                val count = min(shards.toInt() + 20, 500)
-                val random = java.util.Random(123)
-                repeat(count) {
-                    val x = random.nextFloat() * width
-                    val y = random.nextFloat() * height
-                    drawCircle(
-                        color = EmberGold, 
-                        radius = (1f + random.nextFloat() * 1.5f).dp.toPx(), 
-                        center = Offset(x, y),
-                        alpha = 0.4f + random.nextFloat() * 0.6f
-                    )
-                }
+            // Draw Shards (Entity-based removal)
+            landedShards.forEach { shard ->
+                val centerRelative = Offset(width / 2 + shard.x, shard.y)
+                drawCircle(
+                    color = EmberGold, 
+                    radius = 2.dp.toPx(), 
+                    center = centerRelative,
+                    alpha = 0.7f
+                )
             }
             
-            // Draw Gatherers (Complex random-looking paths)
-            val visibleGatherers = min(state.gatherersCount, 12)
+            // Draw Gatherers (Complex random-looking paths with acceleration)
+            val visibleGatherers = state.gatherersCount
             repeat(visibleGatherers) { i ->
-                val patrolWidth = width * 0.95f
+                val patrolWidth = width * 1.35f
                 val hSpeed1 = 0.0008f + (i * 0.0001f)
                 val hSpeed2 = 0.0005f + (i * 0.00007f)
                 val vSpeed1 = 0.0005f + (i * 0.00012f)
                 val vSpeed2 = 0.0003f + (i * 0.00006f)
                 
-                val hPhase1 = i * 0.8f
-                val hPhase2 = i * 1.9f
-                val vPhase1 = i * 1.4f
-                val vPhase2 = i * 0.3f
+                // Acceleration factors that change every 5 seconds
+                val timeBlock = animTime / 5000
+                val r = java.util.Random(timeBlock + i * 200)
+                val hAccelFactor = 1.8f + r.nextFloat() * 1.2f
+                val vAccelFactor = 1.5f + r.nextFloat() * 1.0f
                 
-                val x = (width / 2) + (sin(animTime * hSpeed1 + hPhase1) * 0.6f + sin(animTime * hSpeed2 + hPhase2) * 0.4f) * patrolWidth / 2
-                val y = height * (0.5f + (sin(animTime * vSpeed1 + vPhase1) * 0.7f + sin(animTime * vSpeed2 + vPhase2) * 0.3f) * 0.4f)
+                val hAccel = sin(animTime * 0.00035f + i * 0.9f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.00025f + i * 1.4f).toFloat() * vAccelFactor
+                
+                val x = (width / 2) + (sin(animTime * hSpeed1 + i * 0.8f + hAccel) * 0.6f + sin(animTime * hSpeed2 + i * 1.9f) * 0.4f) * patrolWidth / 2
+                val y = height * (0.5f + (sin(animTime * vSpeed1 + i * 1.4f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
                 drawCircle(color = Color(0xFF4CAF50), radius = 3f, center = Offset(x.toFloat(), y.toFloat()))
             }
             
-            // Draw Thorns (Complex random-looking paths)
-            val visibleThorns = min(state.thornSprites, 8)
+            // Draw Thorns (Complex random-looking paths with acceleration)
+            val visibleThorns = state.thornSprites
             repeat(visibleThorns) { i ->
-                val patrolWidth = width * 0.9f
+                val patrolWidth = width * 1.3f
                 val hSpeed1 = 0.0012f + (i * 0.0001f)
                 val hSpeed2 = 0.0007f + (i * 0.00005f)
                 val vSpeed1 = 0.0009f + (i * 0.00008f)
                 val vSpeed2 = 0.0005f + (i * 0.00004f)
                 
-                val hPhase1 = i * 2.1f
-                val hPhase2 = i * 0.7f
-                val vPhase1 = i * 1.3f
-                val vPhase2 = i * 0.4f
+                // Acceleration factors that change every 4 seconds
+                val timeBlock = animTime / 4000
+                val r = java.util.Random(timeBlock + i * 100)
+                val hAccelFactor = 1.5f + r.nextFloat() * 1.0f
+                val vAccelFactor = 1.2f + r.nextFloat() * 1.0f
+
+                val hAccel = sin(animTime * 0.0004f + i * 1.1f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.0003f + i * 0.7f).toFloat() * vAccelFactor
                 
-                val x = (width / 2) + (sin(animTime * hSpeed1 + hPhase1) * 0.7f + sin(animTime * hSpeed2 + hPhase2) * 0.3f) * patrolWidth / 2
-                val y = height * (0.5f + (sin(animTime * vSpeed1 + vPhase1) * 0.6f + sin(animTime * vSpeed2 + vPhase2) * 0.4f) * 0.4f)
-                drawCircle(color = Color(0xFFFFC107), radius = 5f, center = Offset(x.toFloat(), y.toFloat()))
+                val x = (width / 2) + (sin(animTime * hSpeed1 + i * 2.1f + hAccel) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
+                val y = height * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
+                drawCircle(color = Color.Red, radius = 5f, center = Offset(x.toFloat(), y.toFloat()))
             }
         }
     }
@@ -610,14 +682,18 @@ fun FloatingDamageText(dn: DamageNumber, onAnimationEnd: () -> Unit) {
 @Composable
 fun ShardParticleMote(p: ShardParticle, onAnimationEnd: () -> Unit) {
     val progress = remember { Animatable(0f) }
+    val density = LocalDensity.current
     LaunchedEffect(Unit) {
         progress.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
         onAnimationEnd()
     }
     // Origin is center of heart
     Canvas(modifier = Modifier.size(8.dp).offset {
+        val groundAreaTopFromCenter = with(density) { (140.dp + 16.dp).toPx() }
+        val groundAreaHeight = with(density) { 80.dp.toPx() }
+        val fallDistance = groundAreaTopFromCenter + groundAreaHeight / 2
+        
         val targetXPx = p.centerRelativePos.x + (p.randomX * progress.value)
-        val fallDistance = 400.dp.toPx()
         val targetYPx = p.centerRelativePos.y + (progress.value * fallDistance)
         IntOffset(targetXPx.toInt() - 4.dp.toPx().toInt(), targetYPx.toInt() - 4.dp.toPx().toInt())
     }.graphicsLayer(alpha = 1f - progress.value, scaleX = 1f - progress.value, scaleY = 1f - progress.value).zIndex(90f)) { drawCircle(color = EmberGold) }

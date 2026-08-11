@@ -10,9 +10,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.centelles.titan.R
 import com.centelles.titan.logic.GameViewModel
 import com.centelles.titan.logic.TalentTree
 import com.centelles.titan.ui.components.ArcanePanel
@@ -33,9 +35,9 @@ fun ConstellationScreen(viewModel: GameViewModel, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = MoonMist),
-                title = { Text("Constellation") },
+                title = { Text(stringResource(R.string.constellation)) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back", color = MoonMist) }
+                    TextButton(onClick = onBack) { Text(stringResource(R.string.back), color = MoonMist) }
                 }
             )
         }
@@ -47,7 +49,7 @@ fun ConstellationScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Descend Stars: ${String.format(Locale.US, "%.1f", state.starlight)} ⭐",
+                    stringResource(R.string.descend_stars_label, String.format(Locale.US, "%.1f", state.starlight)),
                     color = SpectralCyan,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -60,21 +62,23 @@ fun ConstellationScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                 divider = {}
             ) {
                 Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
-                    Text("Might", modifier = Modifier.padding(16.dp))
+                    Text(stringResource(R.string.might), modifier = Modifier.padding(16.dp))
                 }
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { if (state.deepestLayerReached >= 2) selectedTab = 1 },
                     enabled = state.deepestLayerReached >= 2
                 ) {
-                    Text(if (state.deepestLayerReached >= 2) "Craft" else "🔒 Craft", modifier = Modifier.padding(16.dp))
+                    val label = stringResource(R.string.craft)
+                    Text(if (state.deepestLayerReached >= 2) label else "🔒 $label", modifier = Modifier.padding(16.dp))
                 }
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { if (state.deepestLayerReached >= 3) selectedTab = 2 },
                     enabled = state.deepestLayerReached >= 3
                 ) {
-                    Text(if (state.deepestLayerReached >= 3) "Wild" else "🔒 Wild", modifier = Modifier.padding(16.dp))
+                    val label = stringResource(R.string.wild)
+                    Text(if (state.deepestLayerReached >= 3) label else "🔒 $label", modifier = Modifier.padding(16.dp))
                 }
             }
 
@@ -109,16 +113,17 @@ fun TalentNode(talent: com.centelles.titan.logic.Talent, state: com.centelles.ti
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(talent.name, fontWeight = FontWeight.Bold, color = if (unlocked) Color.White else Color.Gray)
-                Text(talent.description, fontSize = 12.sp, color = MoonMist)
+                Text(stringResource(talent.nameRes), fontWeight = FontWeight.Bold, color = if (unlocked) Color.White else Color.Gray)
+                Text(stringResource(talent.descriptionRes), fontSize = 12.sp, color = MoonMist)
                 
                 if (!unlocked) {
                     talent.prerequisites.forEach { (prereqId, reqLevel) ->
-                        val prereqName = com.centelles.titan.logic.GameState.TALENTS.find { it.id == prereqId }?.name ?: prereqId
-                        Text("Requires $prereqName Rank $reqLevel", fontSize = 10.sp, color = Color.Red.copy(alpha = 0.7f))
+                        val prereqTalent = com.centelles.titan.logic.GameState.TALENTS.find { it.id == prereqId }
+                        val prereqName = if (prereqTalent != null) stringResource(prereqTalent.nameRes) else prereqId
+                        Text(stringResource(R.string.requires_rank, prereqName, reqLevel), fontSize = 10.sp, color = Color.Red.copy(alpha = 0.7f))
                     }
                 } else {
-                    Text("Rank: $level", fontSize = 14.sp, color = SpectralCyan)
+                    Text(stringResource(R.string.rank_label, level), fontSize = 14.sp, color = SpectralCyan)
                 }
             }
             Button(

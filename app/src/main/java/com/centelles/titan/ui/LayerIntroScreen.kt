@@ -7,11 +7,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.centelles.titan.R
 import com.centelles.titan.logic.LAYERS
 import com.centelles.titan.ui.theme.MoonMist
 import com.centelles.titan.ui.theme.VoidIndigo
@@ -43,7 +45,7 @@ fun LayerIntroScreen(layer: Int, onFinished: () -> Unit) {
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Layer $layer",
+                    text = stringResource(R.string.layer_label, layer),
                     color = MoonMist.copy(alpha = 0.7f * alpha.value),
                     style = MaterialTheme.typography.labelLarge,
                     letterSpacing = 4.sp
@@ -52,7 +54,7 @@ fun LayerIntroScreen(layer: Int, onFinished: () -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = layerDef.name,
+                    text = stringResource(layerDef.nameRes),
                     color = Color.White.copy(alpha = alpha.value),
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
@@ -62,7 +64,7 @@ fun LayerIntroScreen(layer: Int, onFinished: () -> Unit) {
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    text = layerDef.flavor,
+                    text = stringResource(layerDef.flavorRes),
                     color = MoonMist.copy(alpha = alpha.value),
                     style = MaterialTheme.typography.bodyLarge,
                     fontStyle = FontStyle.Italic,
@@ -77,7 +79,7 @@ fun LayerIntroScreen(layer: Int, onFinished: () -> Unit) {
                         onClick = onFinished,
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f))
                     ) {
-                        Text("Descend Deeper", color = Color.White)
+                        Text(stringResource(R.string.descend_deeper), color = Color.White)
                     }
                 }
             }
