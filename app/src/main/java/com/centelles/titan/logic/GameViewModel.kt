@@ -131,9 +131,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             // 5. HP Regen twist in Layer 3
             var regeneratedHp = 0.0
             if (current.currentLayerDef.mechanicalTwist == "hp_regen") {
-                val regenRate = current.maxTitanHp * 0.005 // 0.5% regen per tick
-                if (current.totalDps < regenRate * 10) { // If DPS is too low, regen occurs
-                   regeneratedHp = regenRate * deltaTime * 10
+                // Use a much more lenient scaling formula to prevent "unbeatable" walls
+                // Percent-based regen reduced to 0.01% to keep it challenging but fair
+                val totalRegenRate = (current.maxTitanHp * 0.0001) + (10.0 * (current.awakeningStage + 1))
+                
+                if (current.totalDps < totalRegenRate * 1.5) { // Very low threshold to stop regen
+                   regeneratedHp = totalRegenRate * deltaTime * 10
                 }
             }
 
