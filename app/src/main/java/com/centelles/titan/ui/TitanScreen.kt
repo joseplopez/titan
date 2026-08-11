@@ -1,5 +1,6 @@
 package com.centelles.titan.ui
 
+import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -26,6 +27,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
@@ -53,8 +55,10 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
     val state by viewModel.state.collectAsState()
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
     val boxSizePx = with(density) { 280.dp.toPx() }
     val halfBoxSizePx = boxSizePx / 2
+    val groundAreaWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() - 32.dp.toPx() }
 
     // High-precision clock for all animations
     val animTime by produceState(initialValue = System.currentTimeMillis()) {
@@ -113,6 +117,57 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
         shakeOffset.animateTo(Offset.Zero, animationSpec = spring(stiffness = Spring.StiffnessHigh))
     }
 
+    // Thorn Collision Detection
+    LaunchedEffect(animTime) {
+        if (state.thornSprites > 0 && particles.isNotEmpty()) {
+            val visibleThorns = min(state.thornSprites, 5)
+            // Height of GroundArea is 80dp
+            // Spacer before GroundArea is 16dp
+            // Half-height of Titan Box is 140dp
+            // distance from center of heart to top of GroundArea = 140dp + 16dp = 156dp
+            val groundAreaTopFromCenter = with(density) { 156.dp.toPx() }
+            val groundAreaHeight = with(density) { 80.dp.toPx() }
+            val fallDistance = with(density) { 400.dp.toPx() }
+            
+            val thorns = (0 until visibleThorns).map { i ->
+                val patrolWidth = groundAreaWidthPx * 0.85f
+                val hSpeed1 = 0.0012f + (i * 0.0001f)
+                val hSpeed2 = 0.0007f + (i * 0.00005f)
+                val vSpeed1 = 0.0009f + (i * 0.00008f)
+                val vSpeed2 = 0.0005f + (i * 0.00004f)
+                
+                val hPhase1 = i * 2.1f
+                val hPhase2 = i * 0.7f
+                val vPhase1 = i * 1.3f
+                val vPhase2 = i * 0.4f
+                
+                val x = (sin(animTime * hSpeed1 + hPhase1) * 0.7f + sin(animTime * hSpeed2 + hPhase2) * 0.3f) * patrolWidth / 2
+                val yInGround = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + vPhase1) * 0.7f + sin(animTime * vSpeed2 + vPhase2) * 0.3f) * 0.4f)
+                val yRelativetoHeart = groundAreaTopFromCenter + yInGround
+                Offset(x.toFloat(), yRelativetoHeart.toFloat())
+            }
+
+            val toRemove = mutableListOf<ShardParticle>()
+            val currentParticles = particles.toList()
+            currentParticles.forEach { p ->
+                val t = animTime - p.startTime
+                val progress = (t.toFloat() / 800f).coerceIn(0f, 1f) // Matches new 800ms duration
+                val currentX = p.centerRelativePos.x + (p.randomX * progress)
+                val currentY = p.centerRelativePos.y + (progress * fallDistance)
+                val pPos = Offset(currentX, currentY)
+                
+                // Reduced radius for less aggressive collection
+                if (thorns.any { tPos -> (pPos - tPos).getDistance() < 50f }) {
+                    toRemove.add(p)
+                }
+            }
+            
+            if (toRemove.isNotEmpty()) {
+                particles.removeAll(toRemove)
+            }
+        }
+    }
+
     Scaffold(
         containerColor = VoidIndigo,
         topBar = {
@@ -155,71 +210,101 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Box(
-                    modifier = Modifier.size(280.dp)
-                        .graphicsLayer(
-                            scaleX = tapAnimatable.value,
-                            scaleY = tapAnimatable.value,
-                            translationX = shakeOffset.value.x,
-                            translationY = shakeOffset.value.y
-                        )
-                        .pointerInput(Unit) {
-                            detectTapGestures { offset ->
-                                viewModel.onTitanTap()
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                // Convert tap offset (absolute in box) to center-relative
-                                val centerRelativePos = offset - Offset(halfBoxSizePx, halfBoxSizePx)
-                                damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage, centerRelativePos))
-                                repeat(3) { particles.add(ShardParticle(System.nanoTime() + it, centerRelativePos)) }
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier.size(280.dp)
+                                .graphicsLayer(
+                                    scaleX = tapAnimatable.value,
+                                    scaleY = tapAnimatable.value,
+                                    translationX = shakeOffset.value.x,
+                                    translationY = shakeOffset.value.y
+                                )
+                                .pointerInput(Unit) {
+                                    detectTapGestures { offset ->
+                                        viewModel.onTitanTap()
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        // Convert tap offset (absolute in box) to center-relative
+                                        val centerRelativePos = offset - Offset(halfBoxSizePx, halfBoxSizePx)
+                                        damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage, centerRelativePos))
+                                        repeat(3) { 
+                                            particles.add(ShardParticle(
+                                                id = System.nanoTime() + it, 
+                                                centerRelativePos = centerRelativePos,
+                                                randomX = KotlinRandom.nextFloat() * 160 - 80,
+                                                randomY = KotlinRandom.nextFloat() * 100,
+                                                startTime = animTime
+                                            )) 
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            TitanCanvas(
+                                hpFraction = (state.titanHp / state.maxTitanHp).toFloat(),
+                                flashAlpha = flashAlpha.value,
+                                isBrittle = state.frostSprites > 0,
+                                isBurning = state.emberSprites > 0,
+                                layer = state.currentLayer
+                            )
+                            
+                            // Sprite Layer
+                            SpriteMotes(state, boxSizePx, animTime)
+                            
+                            // Projectile Layer
+                            projectiles.forEach { proj -> 
+                                key(proj.id) { 
+                                    StrikerProjectileMote(proj) { 
+                                        projectiles.remove(proj)
+                                        damageNumbers.add(DamageNumber(System.nanoTime(), proj.damage, proj.target))
+                                        repeat(2) { 
+                                            particles.add(ShardParticle(
+                                                id = System.nanoTime() + it, 
+                                                centerRelativePos = proj.target,
+                                                randomX = KotlinRandom.nextFloat() * 160 - 80,
+                                                randomY = KotlinRandom.nextFloat() * 100,
+                                                startTime = animTime
+                                            )) 
+                                        } 
+                                    } 
+                                } 
                             }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    TitanCanvas(
-                        hpFraction = (state.titanHp / state.maxTitanHp).toFloat(),
-                        flashAlpha = flashAlpha.value,
-                        isBrittle = state.frostSprites > 0,
-                        isBurning = state.emberSprites > 0,
-                        layer = state.currentLayer
-                    )
-                    
-                    // Sprite Layer
-                    SpriteMotes(state, boxSizePx, animTime)
-                    
-                    // Projectile Layer
-                    projectiles.forEach { proj -> 
-                        key(proj.id) { 
-                            StrikerProjectileMote(proj) { 
-                                projectiles.remove(proj)
-                                damageNumbers.add(DamageNumber(System.nanoTime(), proj.damage, proj.target))
-                                repeat(2) { particles.add(ShardParticle(System.nanoTime() + it, proj.target)) } 
-                            } 
-                        } 
-                    }
 
-                    // Weakspots (Interactive Layer)
-                    state.activeCracks.forEach { crack ->
-                        Weakspot(
-                            crack = crack,
-                            boxSizePx = boxSizePx,
-                            onTap = { 
-                                viewModel.onCrackTap(crack.id)
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                // Normalized to center-relative
-                                val centerRelativePos = Offset((crack.x - 0.5f) * boxSizePx, (crack.y - 0.5f) * boxSizePx)
-                                damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage * 5, centerRelativePos, isCrit = true))
-                                repeat(8) { particles.add(ShardParticle(System.nanoTime() + it, centerRelativePos)) }
+                            // Weakspots (Interactive Layer)
+                            state.activeCracks.forEach { crack ->
+                                Weakspot(
+                                    crack = crack,
+                                    boxSizePx = boxSizePx,
+                                    onTap = { 
+                                        viewModel.onCrackTap(crack.id)
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        // Normalized to center-relative
+                                        val centerRelativePos = Offset((crack.x - 0.5f) * boxSizePx, (crack.y - 0.5f) * boxSizePx)
+                                        damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage * 5, centerRelativePos, isCrit = true))
+                                        repeat(8) { 
+                                            particles.add(ShardParticle(
+                                                id = System.nanoTime() + it, 
+                                                centerRelativePos = centerRelativePos,
+                                                randomX = KotlinRandom.nextFloat() * 160 - 80,
+                                                randomY = KotlinRandom.nextFloat() * 100,
+                                                startTime = animTime
+                                            )) 
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        }
+                        
+                        GroundArea(state, animTime, modifier = Modifier.fillMaxWidth().height(80.dp))
                     }
-
-                    ShardPile(state.shardsOnGround)
                     
-                    // Feedback Layer
-                    damageNumbers.forEach { dn -> key(dn.id) { FloatingDamageText(dn) { damageNumbers.remove(dn) } } }
-                    particles.forEach { p -> key(p.id) { ShardParticleMote(p) { particles.remove(p) } } }
+                    // Feedback Layer (Unclipped)
+                    Box(modifier = Modifier.size(280.dp), contentAlignment = Alignment.Center) {
+                        damageNumbers.forEach { dn -> key(dn.id) { FloatingDamageText(dn) { damageNumbers.remove(dn) } } }
+                        particles.forEach { p -> key(p.id) { ShardParticleMote(p) { particles.remove(p) } } }
+                    }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -319,24 +404,6 @@ fun SpriteMotes(state: com.centelles.titan.logic.GameState, boxSizePx: Float, an
             drawCircle(brush = Brush.radialGradient(colors = listOf(SpectralCyan, Color.Transparent), center = pos, radius = 10f), center = pos, radius = 10f)
             drawCircle(color = SpectralCyan, radius = 3f, center = pos)
         }
-        
-        // Gatherers
-        val visibleGatherers = min(state.gatherersCount, 8)
-        repeat(visibleGatherers) { i ->
-            val rotationSpeed = 2500 + i * 400
-            val angle = ( (animTime % rotationSpeed).toFloat() / rotationSpeed) * 360f
-            val r = 40f + (i * 5f)
-            val pileCenter = center + Offset(0f, size.height * 0.35f)
-            val pos = pileCenter + Offset(cos(Math.toRadians(angle.toDouble())).toFloat() * r, sin(Math.toRadians(angle.toDouble())).toFloat() * r)
-            drawCircle(color = Color(0xFF4CAF50), radius = 2f, center = pos)
-        }
-
-        // Thorns (Patrol)
-        val visibleThorns = min(state.thornSprites, 5)
-        repeat(visibleThorns) { i ->
-            val pos = center + Offset((i * 40f) - 80f, size.height * 0.35f + 20f)
-            drawCircle(color = Color(0xFFFFC107), radius = 4f, center = pos)
-        }
     }
 }
 
@@ -422,15 +489,66 @@ fun TitanCanvas(
 }
 
 @Composable
-fun ShardPile(shards: Double) {
-    if (shards <= 0) return
-    val count = kotlin.math.min(shards.toInt(), 30)
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val random = java.util.Random(123)
-        val center = Offset(size.width / 2, size.height * 0.85f)
-        repeat(count) {
-            val offset = Offset(random.nextFloat() * 100f - 50f, random.nextFloat() * 40f - 20f)
-            drawCircle(color = EmberGold, radius = 3f, center = center + offset)
+fun GroundArea(state: com.centelles.titan.logic.GameState, animTime: Long, modifier: Modifier = Modifier) {
+    val shards = state.shardsOnGround
+    Box(modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+            
+            // Draw Shards (Rectangular shape, higher density)
+            if (shards > 0) {
+                val count = min(shards.toInt() + 20, 500)
+                val random = java.util.Random(123)
+                repeat(count) {
+                    val x = random.nextFloat() * width
+                    val y = random.nextFloat() * height
+                    drawCircle(
+                        color = EmberGold, 
+                        radius = (1f + random.nextFloat() * 1.5f).dp.toPx(), 
+                        center = Offset(x, y),
+                        alpha = 0.4f + random.nextFloat() * 0.6f
+                    )
+                }
+            }
+            
+            // Draw Gatherers (Complex random-looking paths)
+            val visibleGatherers = min(state.gatherersCount, 12)
+            repeat(visibleGatherers) { i ->
+                val patrolWidth = width * 0.95f
+                val hSpeed1 = 0.0008f + (i * 0.0001f)
+                val hSpeed2 = 0.0005f + (i * 0.00007f)
+                val vSpeed1 = 0.0005f + (i * 0.00012f)
+                val vSpeed2 = 0.0003f + (i * 0.00006f)
+                
+                val hPhase1 = i * 0.8f
+                val hPhase2 = i * 1.9f
+                val vPhase1 = i * 1.4f
+                val vPhase2 = i * 0.3f
+                
+                val x = (width / 2) + (sin(animTime * hSpeed1 + hPhase1) * 0.6f + sin(animTime * hSpeed2 + hPhase2) * 0.4f) * patrolWidth / 2
+                val y = height * (0.5f + (sin(animTime * vSpeed1 + vPhase1) * 0.7f + sin(animTime * vSpeed2 + vPhase2) * 0.3f) * 0.4f)
+                drawCircle(color = Color(0xFF4CAF50), radius = 3f, center = Offset(x.toFloat(), y.toFloat()))
+            }
+            
+            // Draw Thorns (Complex random-looking paths)
+            val visibleThorns = min(state.thornSprites, 8)
+            repeat(visibleThorns) { i ->
+                val patrolWidth = width * 0.9f
+                val hSpeed1 = 0.0012f + (i * 0.0001f)
+                val hSpeed2 = 0.0007f + (i * 0.00005f)
+                val vSpeed1 = 0.0009f + (i * 0.00008f)
+                val vSpeed2 = 0.0005f + (i * 0.00004f)
+                
+                val hPhase1 = i * 2.1f
+                val hPhase2 = i * 0.7f
+                val vPhase1 = i * 1.3f
+                val vPhase2 = i * 0.4f
+                
+                val x = (width / 2) + (sin(animTime * hSpeed1 + hPhase1) * 0.7f + sin(animTime * hSpeed2 + hPhase2) * 0.3f) * patrolWidth / 2
+                val y = height * (0.5f + (sin(animTime * vSpeed1 + vPhase1) * 0.6f + sin(animTime * vSpeed2 + vPhase2) * 0.4f) * 0.4f)
+                drawCircle(color = Color(0xFFFFC107), radius = 5f, center = Offset(x.toFloat(), y.toFloat()))
+            }
         }
     }
 }
@@ -461,7 +579,7 @@ fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMote(color: Color, offs
 }
 
 data class DamageNumber(val id: Long, val amount: Double, val centerRelativePos: Offset, val isCrit: Boolean = false)
-data class ShardParticle(val id: Long, val centerRelativePos: Offset)
+data class ShardParticle(val id: Long, val centerRelativePos: Offset, val randomX: Float, val randomY: Float, val startTime: Long)
 data class StrikerProjectile(val id: Long, val start: Offset, val target: Offset, val damage: Double)
 
 @Composable
@@ -492,16 +610,15 @@ fun FloatingDamageText(dn: DamageNumber, onAnimationEnd: () -> Unit) {
 @Composable
 fun ShardParticleMote(p: ShardParticle, onAnimationEnd: () -> Unit) {
     val progress = remember { Animatable(0f) }
-    val randomX = remember { KotlinRandom.nextFloat() * 160 - 80 }
-    val randomY = remember { KotlinRandom.nextFloat() * 100 }
     LaunchedEffect(Unit) {
-        progress.animateTo(1f, animationSpec = tween(600, easing = FastOutSlowInEasing))
+        progress.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
         onAnimationEnd()
     }
     // Origin is center of heart
     Canvas(modifier = Modifier.size(8.dp).offset {
-        val targetXPx = p.centerRelativePos.x + (randomX * progress.value)
-        val targetYPx = p.centerRelativePos.y + (randomY * progress.value + (progress.value * progress.value * 200))
+        val targetXPx = p.centerRelativePos.x + (p.randomX * progress.value)
+        val fallDistance = 400.dp.toPx()
+        val targetYPx = p.centerRelativePos.y + (progress.value * fallDistance)
         IntOffset(targetXPx.toInt() - 4.dp.toPx().toInt(), targetYPx.toInt() - 4.dp.toPx().toInt())
     }.graphicsLayer(alpha = 1f - progress.value, scaleX = 1f - progress.value, scaleY = 1f - progress.value).zIndex(90f)) { drawCircle(color = EmberGold) }
 }
