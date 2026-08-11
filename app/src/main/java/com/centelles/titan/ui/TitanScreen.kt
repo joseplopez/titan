@@ -44,6 +44,8 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random as KotlinRandom
 
+import androidx.compose.ui.text.style.TextAlign
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNavigateToConstellation: () -> Unit) {
@@ -165,7 +167,13 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    TitanCanvas(hpFraction = (state.titanHp / state.maxTitanHp).toFloat(), flashAlpha = flashAlpha.value, isBrittle = state.frostSprites > 0, isBurning = state.emberSprites > 0)
+                    TitanCanvas(
+                        hpFraction = (state.titanHp / state.maxTitanHp).toFloat(),
+                        flashAlpha = flashAlpha.value,
+                        isBrittle = state.frostSprites > 0,
+                        isBurning = state.emberSprites > 0,
+                        layer = state.currentLayer
+                    )
                     
                     // Sprite Layer
                     SpriteMotes(state, boxSizePx, animTime)
@@ -209,8 +217,21 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     val hpProgress = (state.titanHp / state.maxTitanHp).toFloat()
                     val animatedHp by animateFloatAsState(targetValue = hpProgress, label = "hpProgress")
+                    
+                    val hpColor = when(state.currentLayer) {
+                        2 -> Color.White
+                        3 -> Color.Red
+                        4 -> Color.Green
+                        else -> SpectralCyan
+                    }
+                    
                     Box(modifier = Modifier.fillMaxWidth().height(12.dp)) {
-                        LinearProgressIndicator(progress = { animatedHp }, modifier = Modifier.fillMaxSize().clip(CircleShape), color = if (state.emberSprites > 0) CrackMagma else SpectralCyan, trackColor = MysticBlue.copy(alpha = 0.3f))
+                        LinearProgressIndicator(
+                            progress = { animatedHp },
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                            color = if (state.emberSprites > 0) CrackMagma else hpColor,
+                            trackColor = MysticBlue.copy(alpha = 0.3f)
+                        )
                     }
                     Text("${NumberFormatter.format(state.titanHp)} / ${NumberFormatter.format(state.maxTitanHp)}", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.labelSmall, color = MoonMist)
                 }
@@ -219,14 +240,26 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ArcaneButton(onClick = onNavigateToUpgrades, modifier = Modifier.weight(1f), containerColor = MysticBlue) { Text("Upgrades", style = MaterialTheme.typography.labelSmall) }
-                    if (state.awakeningStage >= 1 || state.starlight > 0) {
-                        ArcaneButton(onClick = { viewModel.onRebirth() }, modifier = Modifier.weight(1f), containerColor = ArcanePurple) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Rebirth", style = MaterialTheme.typography.labelSmall)
+                    
+                    val canDescend = state.canDescend()
+                    ArcaneButton(
+                        onClick = { if (canDescend) viewModel.onDescend() },
+                        modifier = Modifier.weight(1.2f),
+                        containerColor = if (canDescend) ArcanePurple else Color.Gray.copy(alpha = 0.5f),
+                        enabled = true
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                if (canDescend) "The Descent" else "Reach Stage ${state.currentLayerDef.finalStage}",
+                                style = MaterialTheme.typography.labelSmall,
+                                textAlign = TextAlign.Center
+                            )
+                            if (canDescend) {
                                 Text("+${String.format(Locale.US, "%.1f", state.calculateStarlightReward())}⭐", fontSize = 10.sp)
                             }
                         }
                     }
+
                     ArcaneButton(onClick = { viewModel.onManualCollect(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }, modifier = Modifier.weight(1f), containerColor = EmberGold) { Text("Sweep", style = MaterialTheme.typography.labelSmall) }
                 }
 
@@ -317,9 +350,23 @@ fun StrikerProjectileMote(proj: StrikerProjectile, onHit: () -> Unit) {
 }
 
 @Composable
-fun TitanCanvas(hpFraction: Float, flashAlpha: Float, isBrittle: Boolean, isBurning: Boolean) {
+fun TitanCanvas(
+    hpFraction: Float,
+    flashAlpha: Float,
+    isBrittle: Boolean,
+    isBurning: Boolean,
+    layer: Int
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "glow")
     val glowIntensity by infiniteTransition.animateFloat(initialValue = 0.4f, targetValue = 0.8f, animationSpec = infiniteRepeatable(animation = tween(3000, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "glowIntensity")
+    
+    val veinColor = when(layer) {
+        2 -> Color.White
+        3 -> Color.Red
+        4 -> Color.Green
+        else -> if (isBurning) CrackMagma else SpectralCyan
+    }
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         val center = Offset(size.width / 2, size.height / 2)
         val radius = size.width * 0.4f
@@ -332,8 +379,16 @@ fun TitanCanvas(hpFraction: Float, flashAlpha: Float, isBrittle: Boolean, isBurn
             lineTo(center.x - radius * 0.8f, center.y - radius * 0.5f)
             close()
         }
-        drawPath(path = path, brush = Brush.radialGradient(colors = listOf(MysticBlue, VoidIndigo), center = center, radius = radius * 1.5f))
-        val veinColor = if (isBurning) CrackMagma else SpectralCyan
+        
+        val stoneColors = when(layer) {
+            2 -> listOf(Color(0xFFE0F7FA), Color(0xFFB2EBF2))
+            3 -> listOf(Color(0xFF3E2723), Color(0xFF212121))
+            4 -> listOf(Color(0xFF1B5E20), Color(0xFF004D40))
+            else -> listOf(MysticBlue, VoidIndigo)
+        }
+
+        drawPath(path = path, brush = Brush.radialGradient(colors = stoneColors, center = center, radius = radius * 1.5f))
+        
         drawPath(path = path, color = veinColor.copy(alpha = 0.2f * glowIntensity))
         val cracksCount = ((1f - hpFraction) * 20).toInt()
         val random = java.util.Random(42)
@@ -344,7 +399,14 @@ fun TitanCanvas(hpFraction: Float, flashAlpha: Float, isBrittle: Boolean, isBurn
             val startY = center.y + sin(Math.toRadians(startAngle.toDouble())).toFloat() * radius * 0.2f
             drawLine(color = veinColor.copy(alpha = 0.6f), start = Offset(startX, startY), end = Offset(startX + cos(Math.toRadians(startAngle.toDouble())).toFloat() * length, startY + sin(Math.toRadians(startAngle.toDouble())).toFloat() * length), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
         }
-        drawPath(path = path, color = if (isBrittle) Color(0xFFADD8E6) else MysticBlue, style = Stroke(width = 2.dp.toPx()))
+        
+        val outlineColor = when(layer) {
+            2 -> Color.White
+            3 -> Color.Red
+            4 -> EmberGold
+            else -> if (isBrittle) Color(0xFFADD8E6) else MysticBlue
+        }
+        drawPath(path = path, color = outlineColor, style = Stroke(width = 2.dp.toPx()))
         if (flashAlpha > 0) drawPath(path = path, color = Color.White.copy(alpha = flashAlpha))
     }
 }

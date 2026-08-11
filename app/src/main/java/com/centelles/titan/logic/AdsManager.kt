@@ -16,6 +16,6 @@ class AdsManager(private val context: Context) {
     }
     
     fun showInterstitialAd() {
-        // Placeholder for interstitial ads (e.g., after Rebirth)
+        // Placeholder for interstitial ads (e.g., after Descent)
     }
 }

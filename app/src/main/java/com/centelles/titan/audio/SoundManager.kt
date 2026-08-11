@@ -38,8 +38,8 @@ class SoundManager(private val context: Context) {
         // TODO: soundPool.play(sounds["upgrade"] ?: return, 1f, 1f, 0, 0, 1f)
     }
 
-    fun playRebirth() {
-        // TODO: soundPool.play(sounds["rebirth"] ?: return, 1f, 1f, 0, 0, 1f)
+    fun playDescend() {
+        // TODO: soundPool.play(sounds["descend"] ?: return, 1f, 1f, 0, 0, 1f)
     }
 
     fun startAmbientMusic() {

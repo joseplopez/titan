@@ -22,6 +22,7 @@ import kotlin.random.Random
 sealed class GameEvent {
     data class StrikerHit(val damage: Double, val strikerIndex: Int) : GameEvent()
     data class ShardsCollected(val amount: Double) : GameEvent()
+    data class LayerStoryReveal(val layer: Int) : GameEvent()
 }
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
@@ -48,6 +49,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             repository.gameStateFlow.collect { savedState ->
                 if (savedState != null) {
                     _state.value = savedState
+                    // Check if we should show a story reveal for the current layer
+                    if (savedState.hasSeenLayerIntro.getOrDefault(savedState.currentLayer, false) == false) {
+                        _events.emit(GameEvent.LayerStoryReveal(savedState.currentLayer))
+                    }
                 }
             }
         }
@@ -92,24 +97,28 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 activeCracks
             }
 
-            // 3. Strikers deal damage (Staggered shots from all strikers)
-            var damageDealt = 0.0
-            val maxVisualStrikers = 10
-            val strikerCount = min(current.strikersCount, maxVisualStrikers)
-            
+            // 3. Strikers deal damage (Continuous volley)
+            var totalDamageThisTick = 0.0
+            val strikerCount = min(current.strikersCount, 10)
             if (strikerCount > 0) {
-                val shotInterval = 2000 / strikerCount
-                if (currentTime - lastStrikerAttackTime >= shotInterval) {
+                // Fire one striker every (2000 / count) ms
+                val interval = 2000 / strikerCount
+                if (currentTime - lastStrikerAttackTime >= interval) {
                     lastStrikerAttackTime = currentTime
                     // Cycle through strikers
-                    val strikerIndex = ( (currentTime / shotInterval) % strikerCount).toInt()
+                    val strikerIndex = ( (currentTime / interval) % strikerCount).toInt()
                     
-                    // Total damage for the time elapsed since last check (0.1s tick)
-                    // But we only fire when interval passes. To stay accurate:
-                    val damagePerShot = current.totalDps * (shotInterval / 1000.0)
+                    val damagePerShot = current.totalDps * (interval / 1000.0)
                     
-                    _events.tryEmit(GameEvent.StrikerHit(damagePerShot, strikerIndex))
-                    damageDealt = damagePerShot
+                    // Apply mechanical twist: Brittle resistance in Layer 2
+                    val finalDamage = if (current.currentLayerDef.mechanicalTwist == "brittle_resistance" && current.frostSprites == 0) {
+                        damagePerShot * 0.2
+                    } else {
+                        damagePerShot
+                    }
+
+                    _events.tryEmit(GameEvent.StrikerHit(finalDamage, strikerIndex))
+                    totalDamageThisTick = finalDamage
                 }
             }
             
@@ -119,15 +128,24 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 _events.tryEmit(GameEvent.ShardsCollected(shardsToCollect))
             }
             
-            val newHp = max(0.0, current.titanHp - damageDealt)
+            // 5. HP Regen twist in Layer 3
+            var regeneratedHp = 0.0
+            if (current.currentLayerDef.mechanicalTwist == "hp_regen") {
+                val regenRate = current.maxTitanHp * 0.005 // 0.5% regen per tick
+                if (current.totalDps < regenRate * 10) { // If DPS is too low, regen occurs
+                   regeneratedHp = regenRate * deltaTime * 10
+                }
+            }
+
+            val newHp = min(current.maxTitanHp, max(0.0, current.titanHp - totalDamageThisTick + regeneratedHp))
             
             val updated = current.copy(
                 shardsBanked = current.shardsBanked + shardsToCollect,
-                shardsOnGround = max(0.0, current.shardsOnGround + damageDealt - shardsToCollect),
+                shardsOnGround = max(0.0, current.shardsOnGround + totalDamageThisTick - shardsToCollect),
                 titanHp = newHp,
                 activeCracks = newCracks,
-                currentRunShardsEarned = current.currentRunShardsEarned + damageDealt,
-                totalLifetimeShards = current.totalLifetimeShards + damageDealt
+                currentRunShardsEarned = current.currentRunShardsEarned + totalDamageThisTick,
+                totalLifetimeShards = current.totalLifetimeShards + totalDamageThisTick
             )
             
             if (newHp <= 0.0) {
@@ -140,7 +158,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun GameState.handleAwakening(): GameState {
         val nextStage = awakeningStage + 1
-        val nextMaxHp = 100.0 * 2.5.pow(nextStage)
+        // HP scaling includes layer multiplier
+        val nextMaxHp = 100.0 * 2.5.pow(nextStage) * currentLayerDef.hpMultiplier
         return copy(
             awakeningStage = nextStage,
             titanHp = nextMaxHp,
@@ -172,7 +191,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val crackIndex = current.activeCracks.indexOfFirst { it.id == id }
             if (crackIndex == -1) return@update current
             
-            val damage = current.clickDamage * 5.0
+            val damage = current.clickDamage * current.crackDamageMult
             val newHp = max(0.0, current.titanHp - damage)
             
             val updated = current.copy(
@@ -301,24 +320,52 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onRebirth() {
+    fun onDescend() {
         _state.update { current ->
-            val reward = current.calculateStarlightReward()
-            if (current.awakeningStage >= 1 || current.starlight > 0) {
+            if (current.canDescend()) {
+                val reward = current.calculateStarlightReward()
+                val nextLayer = current.currentLayer + 1
+                val deepest = max(current.deepestLayerReached, nextLayer)
+                
+                // Reset run-specific state
                 GameState(
                     starlight = current.starlight + reward,
                     permanentTalents = current.permanentTalents,
                     totalLifetimeShards = current.totalLifetimeShards,
+                    currentLayer = nextLayer,
+                    deepestLayerReached = deepest,
+                    hasSeenLayerIntro = current.hasSeenLayerIntro,
                     adsRemoved = current.adsRemoved,
                     isTutorialCompleted = current.isTutorialCompleted,
                     hasSeenIntro = current.hasSeenIntro
-                )
+                ).let { newState ->
+                    // Initialize Titan HP for the new layer
+                    val maxHp = 100.0 * newState.currentLayerDef.hpMultiplier
+                    newState.copy(
+                        titanHp = maxHp,
+                        maxTitanHp = maxHp
+                    )
+                }
             } else {
                 current
             }
         }
+        
+        // Trigger story reveal for the new layer
+        viewModelScope.launch {
+            _events.emit(GameEvent.LayerStoryReveal(_state.value.currentLayer))
+        }
+
         viewModelScope.launch {
             repository.saveGameState(_state.value)
+        }
+    }
+
+    fun markLayerIntroSeen(layer: Int) {
+        _state.update { current ->
+            val newSeen = current.hasSeenLayerIntro.toMutableMap()
+            newSeen[layer] = true
+            current.copy(hasSeenLayerIntro = newSeen)
         }
     }
 

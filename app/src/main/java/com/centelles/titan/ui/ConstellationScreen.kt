@@ -1,143 +1,123 @@
 package com.centelles.titan.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.centelles.titan.logic.GameViewModel
-import com.centelles.titan.util.NumberFormatter
-
+import com.centelles.titan.ui.components.ArcanePanel
+import com.centelles.titan.ui.theme.EmberGold
+import com.centelles.titan.ui.theme.MoonMist
+import com.centelles.titan.ui.theme.SpectralCyan
+import com.centelles.titan.ui.theme.VoidIndigo
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConstellationScreen(viewModel: GameViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) }
 
     Scaffold(
+        containerColor = VoidIndigo,
         topBar = {
             TopAppBar(
-                title = { Text("Constellation Tree") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = MoonMist),
+                title = { Text("Constellation") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    TextButton(onClick = onBack) { Text("Back", color = MoonMist) }
                 },
                 actions = {
                     Text(
-                        "Starlight: ${String.format(Locale.US, "%.1f", state.starlight)}",
+                        "Starlight: ${String.format(Locale.US, "%.1f", state.starlight)} ⭐",
                         modifier = Modifier.padding(end = 16.dp),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = SpectralCyan,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Text(
-                    "Permanent Blessings",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Text(
-                    "These talents persist across all Rebirths.",
-                    style = MaterialTheme.typography.bodySmall
-                )
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Color.Transparent,
+                contentColor = SpectralCyan,
+                divider = {}
+            ) {
+                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
+                    Text("Might", modifier = Modifier.padding(16.dp))
+                }
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { if (state.deepestLayerReached >= 2) selectedTab = 1 },
+                    enabled = state.deepestLayerReached >= 2
+                ) {
+                    Text(if (state.deepestLayerReached >= 2) "Craft" else "🔒 Craft", modifier = Modifier.padding(16.dp))
+                }
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { if (state.deepestLayerReached >= 3) selectedTab = 2 },
+                    enabled = state.deepestLayerReached >= 3
+                ) {
+                    Text(if (state.deepestLayerReached >= 3) "Wild" else "🔒 Wild", modifier = Modifier.padding(16.dp))
+                }
             }
 
-            item {
-                TalentItem(
-                    name = "Celestial Might",
-                    description = "+20% DPS per level (Tap & Strikers).",
-                    level = state.permanentTalents.getOrDefault("starlight_dps", 0),
-                    cost = state.getTalentCost("starlight_dps"),
-                    canAfford = state.starlight >= state.getTalentCost("starlight_dps"),
-                    onBuy = { viewModel.buyTalent("starlight_dps") }
-                )
-            }
-
-            item {
-                TalentItem(
-                    name = "Astral Greed",
-                    description = "+20% CPS per level.",
-                    level = state.permanentTalents.getOrDefault("starlight_cps", 0),
-                    cost = state.getTalentCost("starlight_cps"),
-                    canAfford = state.starlight >= state.getTalentCost("starlight_cps"),
-                    onBuy = { viewModel.buyTalent("starlight_cps") }
-                )
-            }
-
-            item {
-                TalentItem(
-                    name = "Expansive Groves",
-                    description = "+5 Sprite capacity per level.",
-                    level = state.permanentTalents.getOrDefault("starlight_capacity", 0),
-                    cost = state.getTalentCost("starlight_capacity"),
-                    canAfford = state.starlight >= state.getTalentCost("starlight_capacity"),
-                    onBuy = { viewModel.buyTalent("starlight_capacity") }
-                )
-            }
-
-            item {
-                TalentItem(
-                    name = "Spirit Call",
-                    description = "-5% Sprite recruitment cost per level.",
-                    level = state.permanentTalents.getOrDefault("starlight_costs", 0),
-                    cost = state.getTalentCost("starlight_costs"),
-                    canAfford = state.starlight >= state.getTalentCost("starlight_costs"),
-                    onBuy = { viewModel.buyTalent("starlight_costs") }
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                when (selectedTab) {
+                    0 -> {
+                        item { TalentNode("starlight_dps", "Celestial Might", "+20% DPS", state, viewModel) }
+                        item { TalentNode("starlight_crit", "Stellar Focus", "+10% Crack Damage", state, viewModel) }
+                    }
+                    1 -> {
+                        item { TalentNode("starlight_cps", "Astral Greed", "+20% CPS", state, viewModel) }
+                        item { TalentNode("starlight_costs", "Spirit Call", "-5% Sprite Costs", state, viewModel) }
+                    }
+                    2 -> {
+                        item { TalentNode("starlight_capacity", "Expansive Groves", "+5 Sprite Capacity", state, viewModel) }
+                        item { TalentNode("starlight_elements", "Primordial Aura", "+15% Elemental Potency", state, viewModel) }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun TalentItem(
-    name: String,
-    description: String,
-    level: Int,
-    cost: Double,
-    canAfford: Boolean,
-    onBuy: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
+fun TalentNode(id: String, name: String, description: String, state: com.centelles.titan.logic.GameState, viewModel: GameViewModel) {
+    val level = state.permanentTalents.getOrDefault(id, 0)
+    val cost = state.getTalentCost(id)
+    val canAfford = state.starlight >= cost
+
+    ArcanePanel(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(name, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Rank: $level", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(name, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(description, fontSize = 12.sp, color = MoonMist)
+                Text("Rank: $level", fontSize = 14.sp, color = SpectralCyan)
             }
             Button(
-                onClick = onBuy,
+                onClick = { viewModel.buyTalent(id) },
                 enabled = canAfford,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = SpectralCyan, contentColor = VoidIndigo)
             ) {
-                Text("${String.format(Locale.US, "%.1f", cost)} ⭐", fontSize = 14.sp)
+                Text("${String.format(Locale.US, "%.1f", cost)} ⭐")
             }
         }
     }
