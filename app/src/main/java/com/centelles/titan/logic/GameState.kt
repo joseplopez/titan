@@ -114,7 +114,7 @@ data class GameState(
         // Mechanical Twist: Brittle resistance in Layer 2
         val penalty = if (currentLayerDef.mechanicalTwist == "brittle_resistance" && frostSprites == 0) 0.2 else 1.0
         
-        return (base * penalty).coerceAtLeast(if (penalty < 1.0) 0.1 else 1.0)
+        return (base * penalty).coerceAtLeast(1.0)
     }
 
     val crackDamageMult: Double get() = 5.0 * starlightCritMult

@@ -43,6 +43,7 @@ import com.centelles.titan.ui.components.ArcanePanel
 import com.centelles.titan.ui.theme.*
 import com.centelles.titan.util.NumberFormatter
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.min
@@ -58,7 +59,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
-    val boxSizePx = with(density) { 280.dp.toPx() }
+    val boxSizePx = with(density) { 240.dp.toPx() }
     val halfBoxSizePx = boxSizePx / 2
     val groundAreaWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() - 32.dp.toPx() }
 
@@ -92,6 +93,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
     val tapAnimatable = remember { Animatable(1f) }
     val flashAlpha = remember { Animatable(0f) }
     val shakeOffset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -108,10 +110,11 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
         }
     }
 
-    LaunchedEffect(state.titanHp) {
+    /* Removed redundant HP sync animation to avoid conflicts with manual tap animation */
+    /* LaunchedEffect(state.titanHp) {
         tapAnimatable.animateTo(0.95f, animationSpec = tween(50))
         tapAnimatable.animateTo(1f, animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f))
-    }
+    } */
 
     LaunchedEffect(state.currentRunShardsEarned) {
         flashAlpha.animateTo(0.4f, animationSpec = tween(50))
@@ -143,19 +146,19 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
             
             repeat(visibleThorns) { i ->
                 val patrolWidth = groundAreaWidthPx * 1.3f
-                val hSpeed1 = 0.0012f + (i * 0.0001f)
-                val hSpeed2 = 0.0007f + (i * 0.00005f)
-                val vSpeed1 = 0.0009f + (i * 0.00008f)
-                val vSpeed2 = 0.0005f + (i * 0.00004f)
+                val hSpeed1 = 0.0006f + (i * 0.00005f)
+                val hSpeed2 = 0.00035f + (i * 0.000025f)
+                val vSpeed1 = 0.00045f + (i * 0.00004f)
+                val vSpeed2 = 0.00025f + (i * 0.00002f)
                 
                 // Acceleration factors that change every 4 seconds
                 val timeBlock = animTime / 4000
                 val r = java.util.Random(timeBlock + i * 100)
-                val hAccelFactor = 1.5f + r.nextFloat() * 1.0f
-                val vAccelFactor = 1.2f + r.nextFloat() * 1.0f
+                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
+                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
                 
-                val hAccel = sin(animTime * 0.0004f + i * 1.1f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.0003f + i * 0.7f).toFloat() * vAccelFactor
+                val hAccel = sin(animTime * 0.0002f + i * 1.1f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.00015f + i * 0.7f).toFloat() * vAccelFactor
                 
                 val x = (sin(animTime * hSpeed1 + i * 2.1f + hAccel) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
                 val y = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.4f) * 0.3f) * 0.8f)
@@ -164,19 +167,19 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
             
             repeat(visibleGatherers) { i ->
                 val patrolWidth = groundAreaWidthPx * 1.35f
-                val hSpeed1 = 0.0008f + (i * 0.0001f)
-                val hSpeed2 = 0.0005f + (i * 0.00007f)
-                val vSpeed1 = 0.0005f + (i * 0.00012f)
-                val vSpeed2 = 0.0003f + (i * 0.00006f)
+                val hSpeed1 = 0.0004f + (i * 0.00005f)
+                val hSpeed2 = 0.00025f + (i * 0.00003f)
+                val vSpeed1 = 0.00025f + (i * 0.00006f)
+                val vSpeed2 = 0.00015f + (i * 0.00003f)
                 
                 // Acceleration factors that change every 5 seconds
                 val timeBlock = animTime / 5000
                 val r = java.util.Random(timeBlock + i * 200)
-                val hAccelFactor = 1.8f + r.nextFloat() * 1.2f
-                val vAccelFactor = 1.5f + r.nextFloat() * 1.0f
+                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
+                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
                 
-                val hAccel = sin(animTime * 0.00035f + i * 0.9f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.00025f + i * 1.4f).toFloat() * vAccelFactor
+                val hAccel = sin(animTime * 0.0002f + i * 0.9f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.00015f + i * 1.4f).toFloat() * vAccelFactor
                 
                 val x = (sin(animTime * hSpeed1 + i * 0.8f + hAccel) * 0.6f + sin(animTime * hSpeed2 + i * 1.9f) * 0.4f) * patrolWidth / 2
                 val y = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.4f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
@@ -207,10 +210,10 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
             
             val thorns = (0 until visibleThorns).map { i ->
                 val patrolWidth = groundAreaWidthPx * 0.85f
-                val hSpeed1 = 0.0012f + (i * 0.0001f)
-                val hSpeed2 = 0.0007f + (i * 0.00005f)
-                val vSpeed1 = 0.0009f + (i * 0.00008f)
-                val vSpeed2 = 0.0005f + (i * 0.00004f)
+                val hSpeed1 = 0.0006f + (i * 0.00005f)
+                val hSpeed2 = 0.00035f + (i * 0.000025f)
+                val vSpeed1 = 0.00045f + (i * 0.00004f)
+                val vSpeed2 = 0.00025f + (i * 0.00002f)
                 
                 val x = (sin(animTime * hSpeed1 + i * 2.1f) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
                 val yInGround = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f) * 0.7f + sin(animTime * vSpeed2 + i * 0.4f) * 0.3f) * 0.4f)
@@ -283,7 +286,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
-                            modifier = Modifier.size(280.dp)
+                            modifier = Modifier.size(240.dp)
                                 .graphicsLayer(
                                     scaleX = tapAnimatable.value,
                                     scaleY = tapAnimatable.value,
@@ -294,6 +297,12 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                                     detectTapGestures { offset ->
                                         viewModel.onTitanTap()
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        
+                                        coroutineScope.launch {
+                                            tapAnimatable.animateTo(0.92f, animationSpec = tween(50))
+                                            tapAnimatable.animateTo(1f, animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f))
+                                        }
+
                                         // Convert tap offset (absolute in box) to center-relative
                                         val centerRelativePos = offset - Offset(halfBoxSizePx, halfBoxSizePx)
                                         damageNumbers.add(DamageNumber(System.nanoTime(), state.clickDamage, centerRelativePos))
@@ -368,11 +377,11 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                             }
                         }
                         
-                        GroundArea(state, animTime, landedShards, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        GroundArea(state, animTime, landedShards, modifier = Modifier.fillMaxWidth().height(60.dp))
                     }
                     
                     // Feedback Layer (Unclipped)
-                    Box(modifier = Modifier.size(280.dp), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(240.dp), contentAlignment = Alignment.Center) {
                         damageNumbers.forEach { dn -> key(dn.id) { FloatingDamageText(dn) { damageNumbers.remove(dn) } } }
                         particles.forEach { p -> key(p.id) { ShardParticleMote(p) { particles.remove(p) } } }
                     }
@@ -433,7 +442,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                ArcanePanel(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                ArcanePanel(modifier = Modifier.fillMaxWidth().heightIn(max = 140.dp)) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(stringResource(R.string.recruit_sprites_label, state.currentSpriteCount, state.spriteCapacity), style = MaterialTheme.typography.labelSmall, color = MoonMist)
                         Spacer(modifier = Modifier.height(8.dp))
@@ -641,19 +650,19 @@ fun GroundArea(state: com.centelles.titan.logic.GameState, animTime: Long, lande
             val visibleGatherers = state.gatherersCount
             repeat(visibleGatherers) { i ->
                 val patrolWidth = width * 1.35f
-                val hSpeed1 = 0.0008f + (i * 0.0001f)
-                val hSpeed2 = 0.0005f + (i * 0.00007f)
-                val vSpeed1 = 0.0005f + (i * 0.00012f)
-                val vSpeed2 = 0.0003f + (i * 0.00006f)
+                val hSpeed1 = 0.0004f + (i * 0.00005f)
+                val hSpeed2 = 0.00025f + (i * 0.00003f)
+                val vSpeed1 = 0.00025f + (i * 0.00006f)
+                val vSpeed2 = 0.00015f + (i * 0.00003f)
                 
                 // Acceleration factors that change every 5 seconds
                 val timeBlock = animTime / 5000
                 val r = java.util.Random(timeBlock + i * 200)
-                val hAccelFactor = 1.8f + r.nextFloat() * 1.2f
-                val vAccelFactor = 1.5f + r.nextFloat() * 1.0f
+                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
+                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
                 
-                val hAccel = sin(animTime * 0.00035f + i * 0.9f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.00025f + i * 1.4f).toFloat() * vAccelFactor
+                val hAccel = sin(animTime * 0.0002f + i * 0.9f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.00015f + i * 1.4f).toFloat() * vAccelFactor
                 
                 val x = (width / 2) + (sin(animTime * hSpeed1 + i * 0.8f + hAccel) * 0.6f + sin(animTime * hSpeed2 + i * 1.9f) * 0.4f) * patrolWidth / 2
                 val y = height * (0.5f + (sin(animTime * vSpeed1 + i * 1.4f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
@@ -664,19 +673,19 @@ fun GroundArea(state: com.centelles.titan.logic.GameState, animTime: Long, lande
             val visibleThorns = state.thornSprites
             repeat(visibleThorns) { i ->
                 val patrolWidth = width * 1.3f
-                val hSpeed1 = 0.0012f + (i * 0.0001f)
-                val hSpeed2 = 0.0007f + (i * 0.00005f)
-                val vSpeed1 = 0.0009f + (i * 0.00008f)
-                val vSpeed2 = 0.0005f + (i * 0.00004f)
+                val hSpeed1 = 0.0006f + (i * 0.00005f)
+                val hSpeed2 = 0.00035f + (i * 0.000025f)
+                val vSpeed1 = 0.00045f + (i * 0.00004f)
+                val vSpeed2 = 0.00025f + (i * 0.00002f)
                 
                 // Acceleration factors that change every 4 seconds
                 val timeBlock = animTime / 4000
                 val r = java.util.Random(timeBlock + i * 100)
-                val hAccelFactor = 1.5f + r.nextFloat() * 1.0f
-                val vAccelFactor = 1.2f + r.nextFloat() * 1.0f
+                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
+                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
 
-                val hAccel = sin(animTime * 0.0004f + i * 1.1f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.0003f + i * 0.7f).toFloat() * vAccelFactor
+                val hAccel = sin(animTime * 0.0002f + i * 1.1f).toFloat() * hAccelFactor
+                val vAccel = sin(animTime * 0.00015f + i * 0.7f).toFloat() * vAccelFactor
                 
                 val x = (width / 2) + (sin(animTime * hSpeed1 + i * 2.1f + hAccel) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
                 val y = height * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)

@@ -8,7 +8,7 @@
     <string name="cps">CPS</string>
     <string name="stage_label">Stage %d</string>
     <string name="the_descent">The Descent</string>
-    <string name="reach_stage">Reach Stage %d</string>
+    <string name="reach_stage">Complete Stage %d</string>
     <string name="sweep">Collect</string>
     <string name="recruit_sprites_label">Recruit Sprites (%1$d/%2$d)</string>
     <string name="striker">Striker</string>
