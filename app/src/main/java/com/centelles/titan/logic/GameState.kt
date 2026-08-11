@@ -52,6 +52,19 @@ val LAYERS = listOf(
 )
 
 @Serializable
+data class Talent(
+    val id: String,
+    val name: String,
+    val description: String,
+    val tree: TalentTree,
+    val baseCost: Double,
+    val costMultiplier: Double,
+    val prerequisites: Map<String, Int> = emptyMap()
+)
+
+enum class TalentTree { MIGHT, CRAFT, WILD }
+
+@Serializable
 data class GameState(
     val shardsBanked: Double = 0.0,
     val shardsOnGround: Double = 0.0,
@@ -90,9 +103,17 @@ data class GameState(
     private val boostMultiplier: Double get() = if (System.currentTimeMillis() < boostEndTime) 2.0 else 1.0
 
     val clickDamage: Double get() {
-        val base = 1.0 * (1.1.pow(upgrades.getOrDefault("click_power", 0))) * starlightDpsMult * boostMultiplier
+        // Base damage scales with upgrades (increased multiplier from 1.1 to 1.2)
+        val upgradeBase = 1.0 * (1.2.pow(upgrades.getOrDefault("click_power", 0)))
+        // Scaling with total DPS (5% of total DPS is added to click power)
+        val dpsScaling = totalDps * 0.05
+        
+        val base = (upgradeBase + dpsScaling) * starlightDpsMult * boostMultiplier
+        
         // Mechanical Twist: Brittle resistance in Layer 2
-        return if (currentLayerDef.mechanicalTwist == "brittle_resistance" && frostSprites == 0) base * 0.2 else base
+        val penalty = if (currentLayerDef.mechanicalTwist == "brittle_resistance" && frostSprites == 0) 0.2 else 1.0
+        
+        return (base * penalty).coerceAtLeast(if (penalty < 1.0) 0.1 else 1.0)
     }
 
     val crackDamageMult: Double get() = 5.0 * starlightCritMult
@@ -134,16 +155,42 @@ data class GameState(
     }
 
     fun getTalentCost(id: String): Double {
+        val talent = TALENTS.find { it.id == id } ?: return 10.0
         val level = permanentTalents.getOrDefault(id, 0)
-        return when (id) {
-            "starlight_dps" -> 1.0 * 2.0.pow(level)
-            "starlight_crit" -> 1.0 * 2.0.pow(level)
-            "starlight_cps" -> 1.0 * 2.0.pow(level)
-            "starlight_costs" -> 3.0 * 3.0.pow(level)
-            "starlight_capacity" -> 2.0 * 2.5.pow(level)
-            "starlight_elements" -> 5.0 * 3.0.pow(level)
-            else -> 10.0
+        return talent.baseCost * talent.costMultiplier.pow(level)
+    }
+
+    fun canUnlockTalent(id: String): Boolean {
+        val talent = TALENTS.find { it.id == id } ?: return false
+        
+        // Tree unlock requirements
+        when (talent.tree) {
+            TalentTree.CRAFT -> if (deepestLayerReached < 2) return false
+            TalentTree.WILD -> if (deepestLayerReached < 3) return false
+            else -> {}
         }
+
+        // Prerequisite requirements
+        for ((prereqId, requiredLevel) in talent.prerequisites) {
+            if (permanentTalents.getOrDefault(prereqId, 0) < requiredLevel) {
+                return false
+            }
+        }
+        
+        return true
+    }
+
+    companion object {
+        val TALENTS = listOf(
+            Talent("starlight_dps", "Celestial Might", "+20% DPS", TalentTree.MIGHT, 1.0, 2.0),
+            Talent("starlight_crit", "Stellar Focus", "+10% Crack Damage", TalentTree.MIGHT, 1.0, 2.0, mapOf("starlight_dps" to 1)),
+            
+            Talent("starlight_cps", "Astral Greed", "+20% CPS", TalentTree.CRAFT, 1.0, 2.0),
+            Talent("starlight_costs", "Spirit Call", "-5% Sprite Costs", TalentTree.CRAFT, 3.0, 3.0, mapOf("starlight_cps" to 1)),
+            
+            Talent("starlight_capacity", "Expansive Groves", "+5 Sprite Capacity", TalentTree.WILD, 2.0, 2.5),
+            Talent("starlight_elements", "Primordial Aura", "+15% Elemental Potency", TalentTree.WILD, 5.0, 3.0, mapOf("starlight_capacity" to 1))
+        )
     }
 
     fun calculateStarlightReward(): Double {

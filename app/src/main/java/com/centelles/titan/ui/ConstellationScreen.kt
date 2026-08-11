@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.centelles.titan.logic.GameViewModel
+import com.centelles.titan.logic.TalentTree
 import com.centelles.titan.ui.components.ArcanePanel
 import com.centelles.titan.ui.theme.EmberGold
 import com.centelles.titan.ui.theme.MoonMist
@@ -35,19 +36,23 @@ fun ConstellationScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                 title = { Text("Constellation") },
                 navigationIcon = {
                     TextButton(onClick = onBack) { Text("Back", color = MoonMist) }
-                },
-                actions = {
-                    Text(
-                        "Starlight: ${String.format(Locale.US, "%.1f", state.starlight)} ⭐",
-                        modifier = Modifier.padding(end = 16.dp),
-                        color = SpectralCyan,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Descend Stars: ${String.format(Locale.US, "%.1f", state.starlight)} ⭐",
+                    color = SpectralCyan,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
@@ -77,19 +82,14 @@ fun ConstellationScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                when (selectedTab) {
-                    0 -> {
-                        item { TalentNode("starlight_dps", "Celestial Might", "+20% DPS", state, viewModel) }
-                        item { TalentNode("starlight_crit", "Stellar Focus", "+10% Crack Damage", state, viewModel) }
-                    }
-                    1 -> {
-                        item { TalentNode("starlight_cps", "Astral Greed", "+20% CPS", state, viewModel) }
-                        item { TalentNode("starlight_costs", "Spirit Call", "-5% Sprite Costs", state, viewModel) }
-                    }
-                    2 -> {
-                        item { TalentNode("starlight_capacity", "Expansive Groves", "+5 Sprite Capacity", state, viewModel) }
-                        item { TalentNode("starlight_elements", "Primordial Aura", "+15% Elemental Potency", state, viewModel) }
-                    }
+                val currentTree = when (selectedTab) {
+                    0 -> TalentTree.MIGHT
+                    1 -> TalentTree.CRAFT
+                    else -> TalentTree.WILD
+                }
+
+                com.centelles.titan.logic.GameState.TALENTS.filter { it.tree == currentTree }.forEach { talent ->
+                    item { TalentNode(talent, state, viewModel) }
                 }
             }
         }
@@ -97,10 +97,11 @@ fun ConstellationScreen(viewModel: GameViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-fun TalentNode(id: String, name: String, description: String, state: com.centelles.titan.logic.GameState, viewModel: GameViewModel) {
-    val level = state.permanentTalents.getOrDefault(id, 0)
-    val cost = state.getTalentCost(id)
-    val canAfford = state.starlight >= cost
+fun TalentNode(talent: com.centelles.titan.logic.Talent, state: com.centelles.titan.logic.GameState, viewModel: GameViewModel) {
+    val level = state.permanentTalents.getOrDefault(talent.id, 0)
+    val cost = state.getTalentCost(talent.id)
+    val unlocked = state.canUnlockTalent(talent.id)
+    val canAfford = state.starlight >= cost && unlocked
 
     ArcanePanel(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -108,12 +109,20 @@ fun TalentNode(id: String, name: String, description: String, state: com.centell
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(name, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(description, fontSize = 12.sp, color = MoonMist)
-                Text("Rank: $level", fontSize = 14.sp, color = SpectralCyan)
+                Text(talent.name, fontWeight = FontWeight.Bold, color = if (unlocked) Color.White else Color.Gray)
+                Text(talent.description, fontSize = 12.sp, color = MoonMist)
+                
+                if (!unlocked) {
+                    talent.prerequisites.forEach { (prereqId, reqLevel) ->
+                        val prereqName = com.centelles.titan.logic.GameState.TALENTS.find { it.id == prereqId }?.name ?: prereqId
+                        Text("Requires $prereqName Rank $reqLevel", fontSize = 10.sp, color = Color.Red.copy(alpha = 0.7f))
+                    }
+                } else {
+                    Text("Rank: $level", fontSize = 14.sp, color = SpectralCyan)
+                }
             }
             Button(
-                onClick = { viewModel.buyTalent(id) },
+                onClick = { viewModel.buyTalent(talent.id) },
                 enabled = canAfford,
                 colors = ButtonDefaults.buttonColors(containerColor = SpectralCyan, contentColor = VoidIndigo)
             ) {

@@ -27,6 +27,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -119,17 +120,24 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = MoonMist),
                 title = { Text("Titan's Heart", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
-                    if (state.starlight > 0 || state.permanentTalents.isNotEmpty()) {
-                        IconButton(onClick = onNavigateToConstellation) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = EmberGold)
-                        }
+                    IconButton(onClick = onNavigateToConstellation) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = EmberGold)
                     }
                 },
                 actions = {
-                    ArcanePanel(modifier = Modifier.padding(end = 16.dp)) {
-                        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                            Text(NumberFormatter.format(state.shardsBanked), color = EmberGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                            Text("Shards", fontSize = 10.sp, color = MoonMist.copy(alpha = 0.7f))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 16.dp)) {
+                        ArcanePanel(modifier = Modifier.clickable { onNavigateToConstellation() }) {
+                            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                Text("${String.format(Locale.US, "%.1f", state.starlight)}⭐", color = SpectralCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text("Stars", fontSize = 8.sp, color = MoonMist.copy(alpha = 0.7f))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        ArcanePanel {
+                            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                                Text(NumberFormatter.format(state.shardsBanked), color = EmberGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                                Text("Shards", fontSize = 10.sp, color = MoonMist.copy(alpha = 0.7f))
+                            }
                         }
                     }
                 }
@@ -204,17 +212,19 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                             }
                         )
                     }
+
+                    ShardPile(state.shardsOnGround)
                     
                     // Feedback Layer
                     damageNumbers.forEach { dn -> key(dn.id) { FloatingDamageText(dn) { damageNumbers.remove(dn) } } }
                     particles.forEach { p -> key(p.id) { ShardParticleMote(p) { particles.remove(p) } } }
-                    
-                    ShardPile(state.shardsOnGround)
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Stage ${state.awakeningStage + 1}", style = MaterialTheme.typography.labelLarge, color = EmberGold, modifier = Modifier.padding(bottom = 8.dp))
+
                     val hpProgress = (state.titanHp / state.maxTitanHp).toFloat()
                     val animatedHp by animateFloatAsState(targetValue = hpProgress, label = "hpProgress")
                     
@@ -381,7 +391,7 @@ fun TitanCanvas(
         }
         
         val stoneColors = when(layer) {
-            2 -> listOf(Color(0xFFE0F7FA), Color(0xFFB2EBF2))
+            2 -> listOf(MysticBlue, VoidIndigo)
             3 -> listOf(Color(0xFF3E2723), Color(0xFF212121))
             4 -> listOf(Color(0xFF1B5E20), Color(0xFF004D40))
             else -> listOf(MysticBlue, VoidIndigo)
@@ -401,7 +411,7 @@ fun TitanCanvas(
         }
         
         val outlineColor = when(layer) {
-            2 -> Color.White
+            2 -> SpectralCyan
             3 -> Color.Red
             4 -> EmberGold
             else -> if (isBrittle) Color(0xFFADD8E6) else MysticBlue
@@ -467,6 +477,7 @@ fun FloatingDamageText(dn: DamageNumber, onAnimationEnd: () -> Unit) {
         color = if (dn.isCrit) CrackMagma else MoonMist,
         fontWeight = if (dn.isCrit) FontWeight.ExtraBold else FontWeight.Bold,
         fontSize = if (dn.isCrit) 20.sp else 16.sp,
+        style = TextStyle(shadow = Shadow(color = Color.Black, offset = Offset(2f, 2f), blurRadius = 4f)),
         modifier = Modifier.offset { 
             IntOffset(
                 dn.centerRelativePos.x.toInt() - 25, 
@@ -474,7 +485,7 @@ fun FloatingDamageText(dn: DamageNumber, onAnimationEnd: () -> Unit) {
             ) 
         }
         .graphicsLayer(alpha = 1f - animatable.value)
-        .zIndex(10f)
+        .zIndex(100f)
     )
 }
 
@@ -492,7 +503,7 @@ fun ShardParticleMote(p: ShardParticle, onAnimationEnd: () -> Unit) {
         val targetXPx = p.centerRelativePos.x + (randomX * progress.value)
         val targetYPx = p.centerRelativePos.y + (randomY * progress.value + (progress.value * progress.value * 200))
         IntOffset(targetXPx.toInt() - 4.dp.toPx().toInt(), targetYPx.toInt() - 4.dp.toPx().toInt())
-    }.graphicsLayer(alpha = 1f - progress.value, scaleX = 1f - progress.value, scaleY = 1f - progress.value)) { drawCircle(color = EmberGold) }
+    }.graphicsLayer(alpha = 1f - progress.value, scaleX = 1f - progress.value, scaleY = 1f - progress.value).zIndex(90f)) { drawCircle(color = EmberGold) }
 }
 
 @Composable

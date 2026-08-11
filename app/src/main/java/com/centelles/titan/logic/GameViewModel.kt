@@ -372,7 +372,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun buyTalent(id: String) {
         _state.update { current ->
             val cost = current.getTalentCost(id)
-            if (current.starlight >= cost) {
+            if (current.starlight >= cost && current.canUnlockTalent(id)) {
                 val newLevel = current.permanentTalents.getOrDefault(id, 0) + 1
                 val newTalents = current.permanentTalents.toMutableMap()
                 newTalents[id] = newLevel
