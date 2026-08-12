@@ -1,5 +1,6 @@
 package com.centelles.titan.ui
 
+import android.app.Activity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,18 +12,20 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.centelles.titan.R
+import com.centelles.titan.logic.GameState
 import com.centelles.titan.logic.GameViewModel
+import com.centelles.titan.ui.components.AdButton
 import com.centelles.titan.ui.components.ArcaneButton
 import com.centelles.titan.ui.components.ArcanePanel
 import com.centelles.titan.ui.theme.*
@@ -32,6 +35,8 @@ import com.centelles.titan.util.NumberFormatter
 @Composable
 fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val activity = context as? Activity
 
     Scaffold(
         containerColor = VoidIndigo,
@@ -70,19 +75,28 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
             item {
                 SectionHeader(stringResource(R.string.store), EmberGold)
             }
-            
-            item {
-                UpgradeItem(
-                    name = stringResource(R.string.remove_ads),
-                    description = stringResource(R.string.remove_ads_desc),
-                    level = if (state.adsRemoved) 1 else 0,
-                    costString = "$2.99",
-                    canAfford = true,
-                    enabled = !state.adsRemoved,
-                    onBuy = { viewModel.purchaseRemoveAds() }
-                )
-            }
 
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val rewardAmount = (state.totalCps * 100.0).coerceAtLeast(10.0)
+                    AdButton(
+                        label = "+${NumberFormatter.format(rewardAmount)} Shards",
+                        cooldownKey = GameState.AD_SHARDS,
+                        state = state,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activity?.let { viewModel.watchAdForShards(it) } }
+                    )
+                    
+                    AdButton(
+                        label = "2x Boost (3m)",
+                        cooldownKey = GameState.AD_MULTIPLIER,
+                        state = state,
+                        modifier = Modifier.weight(1f),
+                        onClick = { activity?.let { viewModel.watchAdForBoost(it) } }
+                    )
+                }
+            }
+            
             item {
                 SectionHeader(stringResource(R.string.buildings), SpectralCyan)
             }
@@ -95,7 +109,10 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                     costString = NumberFormatter.format(state.getGroveCost()),
                     canAfford = state.shardsBanked >= state.getGroveCost(),
                     onBuy = { viewModel.buildGrove() },
-                    glyph = { BuildingGlyph() }
+                    glyph = { BuildingGlyph() },
+                    upgradeId = "grove",
+                    state = state,
+                    viewModel = viewModel
                 )
             }
 
@@ -111,7 +128,10 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                     costString = NumberFormatter.format(state.getUpgradeCost("click_power")),
                     canAfford = state.shardsBanked >= state.getUpgradeCost("click_power"),
                     onBuy = { viewModel.buyUpgrade("click_power") },
-                    glyph = { TitanGlyph() }
+                    glyph = { TitanGlyph() },
+                    upgradeId = "click_power",
+                    state = state,
+                    viewModel = viewModel
                 )
             }
 
@@ -128,7 +148,10 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                     canAfford = state.shardsBanked >= state.getUpgradeCost("unlock_thorn"),
                     enabled = !state.isUpgradeUnlocked("unlock_thorn"),
                     onBuy = { viewModel.buyUpgrade("unlock_thorn") },
-                    glyph = { GardenGlyph() }
+                    glyph = { GardenGlyph() },
+                    upgradeId = "unlock_thorn",
+                    state = state,
+                    viewModel = viewModel
                 )
             }
 
@@ -141,7 +164,10 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                     canAfford = state.shardsBanked >= state.getUpgradeCost("unlock_ember"),
                     enabled = !state.isUpgradeUnlocked("unlock_ember"),
                     onBuy = { viewModel.buyUpgrade("unlock_ember") },
-                    glyph = { GardenGlyph() }
+                    glyph = { GardenGlyph() },
+                    upgradeId = "unlock_ember",
+                    state = state,
+                    viewModel = viewModel
                 )
             }
 
@@ -154,7 +180,10 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                     canAfford = state.shardsBanked >= state.getUpgradeCost("unlock_frost"),
                     enabled = !state.isUpgradeUnlocked("unlock_frost"),
                     onBuy = { viewModel.buyUpgrade("unlock_frost") },
-                    glyph = { GardenGlyph() }
+                    glyph = { GardenGlyph() },
+                    upgradeId = "unlock_frost",
+                    state = state,
+                    viewModel = viewModel
                 )
             }
 
@@ -169,7 +198,10 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                     level = state.upgrades.getOrDefault("sprite_efficiency", 0),
                     costString = NumberFormatter.format(state.getUpgradeCost("sprite_efficiency")),
                     canAfford = state.shardsBanked >= state.getUpgradeCost("sprite_efficiency"),
-                    onBuy = { viewModel.buyUpgrade("sprite_efficiency") }
+                    onBuy = { viewModel.buyUpgrade("sprite_efficiency") },
+                    upgradeId = "sprite_efficiency",
+                    state = state,
+                    viewModel = viewModel
                 )
             }
             
@@ -195,9 +227,15 @@ fun UpgradeItem(
     canAfford: Boolean,
     enabled: Boolean = true,
     onBuy: () -> Unit,
-    glyph: @Composable (() -> Unit)? = null
+    glyph: @Composable (() -> Unit)? = null,
+    upgradeId: String? = null,
+    state: GameState? = null,
+    viewModel: GameViewModel? = null
 ) {
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val activity = context as? Activity
+
     ArcanePanel(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -215,6 +253,18 @@ fun UpgradeItem(
                 Text(description, fontSize = 12.sp, color = MoonMist.copy(alpha = 0.7f))
                 Text(stringResource(R.string.level_label, level), fontSize = 12.sp, color = SpectralCyan)
             }
+
+            if (upgradeId != null && state != null && viewModel != null && enabled) {
+                AdButton(
+                    label = "Free",
+                    cooldownKey = GameState.AD_FREE_UPGRADE,
+                    state = state,
+                    onClick = { activity?.let { viewModel.watchAdForFreeUpgrade(it, upgradeId) } },
+                    compact = true
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
             ArcaneButton(
                 onClick = {
                     onBuy()

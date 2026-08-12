@@ -1,27 +1,36 @@
 package com.centelles.titan.ui
 
+import android.app.Activity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.centelles.titan.R
+import com.centelles.titan.logic.GameState
 import com.centelles.titan.logic.GameViewModel
 import com.centelles.titan.logic.TalentTree
+import com.centelles.titan.ui.components.ArcaneButton
+import com.centelles.titan.ui.components.AdButton
+import com.centelles.titan.ui.components.ArcaneButton
 import com.centelles.titan.ui.components.ArcanePanel
 import com.centelles.titan.ui.theme.EmberGold
 import com.centelles.titan.ui.theme.MoonMist
 import com.centelles.titan.ui.theme.SpectralCyan
 import com.centelles.titan.ui.theme.VoidIndigo
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -106,6 +115,8 @@ fun TalentNode(talent: com.centelles.titan.logic.Talent, state: com.centelles.ti
     val cost = state.getTalentCost(talent.id)
     val unlocked = state.canUnlockTalent(talent.id)
     val canAfford = state.starlight >= cost && unlocked
+    val context = LocalContext.current
+    val activity = context as? Activity
 
     ArcanePanel(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -126,6 +137,18 @@ fun TalentNode(talent: com.centelles.titan.logic.Talent, state: com.centelles.ti
                     Text(stringResource(R.string.rank_label, level), fontSize = 14.sp, color = SpectralCyan)
                 }
             }
+            
+            if (unlocked) {
+                AdButton(
+                    label = "Free",
+                    cooldownKey = GameState.AD_FREE_TALENT,
+                    state = state,
+                    onClick = { activity?.let { viewModel.watchAdForFreeTalent(it, talent.id) } },
+                    compact = true
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
             Button(
                 onClick = { viewModel.buyTalent(talent.id) },
                 enabled = canAfford,

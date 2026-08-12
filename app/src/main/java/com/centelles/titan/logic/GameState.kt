@@ -88,9 +88,10 @@ data class GameState(
     val upgrades: Map<String, Int> = emptyMap(),
     val activeCracks: List<Crack> = emptyList(),
     val boostEndTime: Long = 0,
-    val adsRemoved: Boolean = false,
     val isTutorialCompleted: Boolean = false,
-    val hasSeenIntro: Boolean = false
+    val hasSeenIntro: Boolean = false,
+    val lastAdWatchTimes: Map<String, Long> = emptyMap(),
+    val isFirstDescendCompleted: Boolean = false
 ) {
     val currentLayerDef: LayerDefinition get() = LAYERS.find { it.level == currentLayer } ?: LAYERS.first()
 
@@ -182,6 +183,12 @@ data class GameState(
     }
 
     companion object {
+        const val AD_SHARDS = "ad_shards"
+        const val AD_MULTIPLIER = "ad_multiplier"
+        const val AD_FREE_UPGRADE = "ad_free_upgrade"
+        const val AD_FREE_TALENT = "ad_free_talent"
+        const val AD_STARLIGHT_BOOST = "ad_starlight_boost"
+
         val TALENTS = listOf(
             Talent("starlight_dps", R.string.talent_starlight_dps_name, R.string.talent_starlight_dps_desc, TalentTree.MIGHT, 1.0, 2.0),
             Talent("starlight_crit", R.string.talent_starlight_crit_name, R.string.talent_starlight_crit_desc, TalentTree.MIGHT, 1.0, 2.0, mapOf("starlight_dps" to 1)),

@@ -20,8 +20,6 @@
     <string name="upgrades_and_store">Upgrades &amp; Store</string>
     <string name="back">Back</string>
     <string name="store">Store</string>
-    <string name="remove_ads">Remove Ads</string>
-    <string name="remove_ads_desc">Permanent 2X Boost button.</string>
     <string name="buildings">Buildings</string>
     <string name="grove">Grove</string>
     <string name="grove_desc">Increases Sprite cap by 10.</string>
@@ -50,6 +48,10 @@
     <string name="wild">Wild</string>
     <string name="requires_rank">Requires %1$s Rank %2$d</string>
     <string name="rank_label">Rank: %d</string>
+    <string name="descent_warning">You are about to break through to the next layer of the Titan\'s Heart. This will reset your current progress, but grant you Starlight based on your achievements.</string>
+    <string name="starlight_reward">Potential Starlight Reward</string>
+    <string name="confirm_descent">Confirm Descent</string>
+    <string name="cancel">Cancel</string>
 
     <string name="story_paragraph_2">It did not wage war, nor seek dominion. It simply slept — curled beneath the mountains, dreaming a dream so vast that stars formed in its wake. Over eons, its dreaming heart crystallized: a core of living crystal, humming with the memory of everything it had ever seen.</string>
     <string name="story_paragraph_3">The mountains wore away. Kingdoms rose atop its shoulders without ever knowing what slept beneath. And in time, the last of the old fey folk — small, curious, and utterly fearless — found the crack in the stone that led to its heart.</string>

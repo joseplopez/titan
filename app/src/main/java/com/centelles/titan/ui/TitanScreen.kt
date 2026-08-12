@@ -1,5 +1,6 @@
 package com.centelles.titan.ui
 
+import android.app.Activity
 import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalConfiguration
@@ -36,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.centelles.titan.R
+import com.centelles.titan.logic.GameState
 import com.centelles.titan.logic.GameEvent
 import com.centelles.titan.logic.GameViewModel
 import com.centelles.titan.ui.components.ArcaneButton
@@ -57,7 +60,12 @@ import androidx.compose.ui.text.style.TextAlign
 fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNavigateToConstellation: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val activity = context as? Activity
     val density = LocalDensity.current
+    
+    var showDescendDialog by remember { mutableStateOf(false) }
+
     val configuration = LocalConfiguration.current
     val boxSizePx = with(density) { 240.dp.toPx() }
     val halfBoxSizePx = boxSizePx / 2
@@ -420,7 +428,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                     
                     val canDescend = state.canDescend()
                     ArcaneButton(
-                        onClick = { if (canDescend) viewModel.onDescend() },
+                        onClick = { if (canDescend) showDescendDialog = true },
                         modifier = Modifier.weight(1.2f),
                         containerColor = if (canDescend) ArcanePurple else Color.Gray.copy(alpha = 0.5f),
                         enabled = true
@@ -467,8 +475,87 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                     }
                 }
             }
+
+            if (showDescendDialog) {
+                DescendDialog(
+                    state = state,
+                    activity = activity,
+                    viewModel = viewModel,
+                    onDismiss = { showDescendDialog = false }
+                )
+            }
         }
     }
+}
+
+@Composable
+fun DescendDialog(
+    state: GameState,
+    activity: Activity?,
+    viewModel: GameViewModel,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = VoidIndigo,
+        title = { Text(stringResource(R.string.the_descent), color = MoonMist) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.descent_warning),
+                    color = MoonMist.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                ArcanePanel(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(stringResource(R.string.starlight_reward), color = MoonMist, fontSize = 14.sp)
+                        Text(
+                            "+${String.format(Locale.US, "%.1f", state.calculateStarlightReward())} ⭐",
+                            color = SpectralCyan,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.isFirstDescendCompleted) {
+                    ArcaneButton(
+                        onClick = {
+                            activity?.let {
+                                viewModel.watchAdForStarlightBoost(it) {
+                                    viewModel.onDescend(starlightBoosted = true)
+                                    onDismiss()
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = EmberGold
+                    ) {
+                        Text("Watch Ad: +50% Starlight", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                
+                ArcaneButton(
+                    onClick = {
+                        viewModel.onDescend()
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = ArcanePurple
+                ) {
+                    Text(stringResource(R.string.confirm_descent), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel), color = MoonMist)
+            }
+        }
+    )
 }
 
 @Composable

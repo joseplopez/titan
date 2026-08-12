@@ -1,5 +1,6 @@
 package com.centelles.titan.logic
 
+import android.app.Activity
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,7 +29,6 @@ sealed class GameEvent {
 class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = GameRepository(application)
     private val adsManager = AdsManager(application)
-    private val billingManager = BillingManager(application)
     
     private val _state = MutableStateFlow(GameState())
     val state: StateFlow<GameState> = _state.asStateFlow()
@@ -323,10 +323,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onDescend() {
+    fun onDescend(starlightBoosted: Boolean = false) {
         _state.update { current ->
             if (current.canDescend()) {
-                val reward = current.calculateStarlightReward()
+                var reward = current.calculateStarlightReward()
+                if (starlightBoosted) {
+                    reward *= 1.5
+                }
+                
                 val nextLayer = current.currentLayer + 1
                 val deepest = max(current.deepestLayerReached, nextLayer)
                 
@@ -338,9 +342,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     currentLayer = nextLayer,
                     deepestLayerReached = deepest,
                     hasSeenLayerIntro = current.hasSeenLayerIntro,
-                    adsRemoved = current.adsRemoved,
                     isTutorialCompleted = current.isTutorialCompleted,
-                    hasSeenIntro = current.hasSeenIntro
+                    hasSeenIntro = current.hasSeenIntro,
+                    lastAdWatchTimes = current.lastAdWatchTimes,
+                    isFirstDescendCompleted = true
                 ).let { newState ->
                     // Initialize Titan HP for the new layer
                     val maxHp = 100.0 * newState.currentLayerDef.hpMultiplier
@@ -389,15 +394,72 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun watchAdForBoost() {
-        adsManager.showRewardedAd {
-            _state.update { it.copy(boostEndTime = System.currentTimeMillis() + 60000) } // 1 minute boost
+    fun watchAdForBoost(activity: Activity) {
+        adsManager.showRewardedAd(activity) {
+            _state.update {
+                it.copy(
+                    boostEndTime = System.currentTimeMillis() + 180000, // 3 minute boost
+                    lastAdWatchTimes = it.lastAdWatchTimes + (GameState.AD_MULTIPLIER to System.currentTimeMillis())
+                )
+            }
         }
     }
 
-    fun purchaseRemoveAds() {
-        billingManager.purchaseRemoveAds {
-            _state.update { it.copy(adsRemoved = true) }
+    fun watchAdForShards(activity: Activity) {
+        adsManager.showRewardedAd(activity) {
+            _state.update { current ->
+                val reward = (current.totalCps * 100.0).coerceAtLeast(10.0)
+                current.copy(
+                    shardsBanked = current.shardsBanked + reward,
+                    lastAdWatchTimes = current.lastAdWatchTimes + (GameState.AD_SHARDS to System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    fun watchAdForFreeUpgrade(activity: Activity, upgradeId: String) {
+        adsManager.showRewardedAd(activity) {
+            _state.update { current ->
+                if (upgradeId == "grove") {
+                    current.copy(
+                        grovesCount = current.grovesCount + 1,
+                        lastAdWatchTimes = current.lastAdWatchTimes + (GameState.AD_FREE_UPGRADE to System.currentTimeMillis())
+                    )
+                } else {
+                    val newLevel = current.upgrades.getOrDefault(upgradeId, 0) + 1
+                    val newUpgrades = current.upgrades.toMutableMap()
+                    newUpgrades[upgradeId] = newLevel
+                    current.copy(
+                        upgrades = newUpgrades,
+                        lastAdWatchTimes = current.lastAdWatchTimes + (GameState.AD_FREE_UPGRADE to System.currentTimeMillis())
+                    )
+                }
+            }
+        }
+    }
+
+    fun watchAdForFreeTalent(activity: Activity, talentId: String) {
+        adsManager.showRewardedAd(activity) {
+            _state.update { current ->
+                val newLevel = current.permanentTalents.getOrDefault(talentId, 0) + 1
+                val newTalents = current.permanentTalents.toMutableMap()
+                newTalents[talentId] = newLevel
+                current.copy(
+                    permanentTalents = newTalents,
+                    lastAdWatchTimes = current.lastAdWatchTimes + (GameState.AD_FREE_TALENT to System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    fun watchAdForStarlightBoost(activity: Activity, onComplete: () -> Unit) {
+        adsManager.showRewardedAd(activity) {
+            _state.update { current ->
+                current.copy(
+                    lastAdWatchTimes = current.lastAdWatchTimes + (GameState.AD_STARLIGHT_BOOST to System.currentTimeMillis())
+                )
+            }
+            onComplete()
         }
     }
 
