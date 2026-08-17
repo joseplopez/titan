@@ -17,8 +17,8 @@ class AdsManager(private val context: Context) {
     private var rewardedAd: RewardedAd? = null
     private var isLoading = false
 
-    // Test Rewarded Ad Unit ID
-    private val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
+    // Production Rewarded Ad Unit ID
+    private val REWARDED_AD_UNIT_ID = "ca-app-pub-9749336798654274/4897755376"
 
     init {
         MobileAds.initialize(context) {

@@ -28,7 +28,6 @@ local.properties
 /captures
 
 # Signing files
-*.jks
 *.keystore
 *.p12
 
