@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import com.centelles.titan.BuildConfig
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
@@ -17,8 +18,11 @@ class AdsManager(private val context: Context) {
     private var rewardedAd: RewardedAd? = null
     private var isLoading = false
 
-    // Production Rewarded Ad Unit ID
-    private val REWARDED_AD_UNIT_ID = "ca-app-pub-9749336798654274/4897755376"
+    private val REWARDED_AD_UNIT_ID = if (BuildConfig.DEBUG) {
+        "ca-app-pub-3940256099942544/5224354917" // Test ID
+    } else {
+        "ca-app-pub-9749336798654274/4897755376" // Production ID
+    }
 
     init {
         MobileAds.initialize(context) {

@@ -29,12 +29,16 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["admob_app_id"] = "ca-app-pub-3940256099942544~3347511713"
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            manifestPlaceholders["admob_app_id"] = "ca-app-pub-9749336798654274~3776245390"
         }
     }
     compileOptions {
@@ -43,6 +47,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
