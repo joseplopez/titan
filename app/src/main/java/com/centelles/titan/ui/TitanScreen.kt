@@ -104,6 +104,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
+        viewModel.checkAndTriggerLayerIntro()
         viewModel.events.collect { event ->
             when (event) {
                 is GameEvent.StrikerHit -> {

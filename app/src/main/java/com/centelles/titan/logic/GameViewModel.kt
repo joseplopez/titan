@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -46,14 +47,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadState() {
         viewModelScope.launch {
-            repository.gameStateFlow.collect { savedState ->
-                if (savedState != null) {
-                    _state.value = savedState
-                    // Check if we should show a story reveal for the current layer
-                    if (savedState.hasSeenLayerIntro.getOrDefault(savedState.currentLayer, false) == false) {
-                        _events.emit(GameEvent.LayerStoryReveal(savedState.currentLayer))
-                    }
-                }
+            // Only load the initial state from disk once at startup
+            val savedState = repository.gameStateFlow.firstOrNull()
+            if (savedState != null) {
+                _state.value = savedState
+            }
+        }
+    }
+
+    fun checkAndTriggerLayerIntro() {
+        val current = _state.value
+        if (current.hasSeenIntro && current.hasSeenLayerIntro.getOrDefault(current.currentLayer, false) == false) {
+            viewModelScope.launch {
+                _events.emit(GameEvent.LayerStoryReveal(current.currentLayer))
             }
         }
     }
