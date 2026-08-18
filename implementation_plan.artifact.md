@@ -54,6 +54,17 @@ This document outlines the strategic feature additions for **Titan** based on to
     *   **Logic**: Use **Firebase Realtime Database** or **Firestore** to push `deepestLayerReached` whenever a user performs a Descent.
     *   **UI**: A simple "Rankings" button in the Constellation screen.
 
+### 6. More spirits
+*   **Concept**: Every descend unlock a new spirit
+*   **Priority**: low 
+*   **Implementation Plan**: Think about it
+
+### 7. Add more descend levels
+*   **Concept**: Add more descend levels, following the exiting unique characteristic damage changes per descend.
+*   **Priority**: low 
+*   **Implementation Plan**: Think about it
+
+
 ---
 
 ## 🛠 Technical Requirements
