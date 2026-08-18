@@ -53,6 +53,14 @@
     <string name="confirm_descent">Confirm Descent</string>
     <string name="cancel">Cancel</string>
 
+    <string name="enjoying_titan">Enjoying Titan?</string>
+    <string name="feedback_prompt">We\'d love to hear your thoughts!</string>
+    <string name="rate_on_play_store">Rate on Play Store</string>
+    <string name="send_feedback">Send Feedback</string>
+    <string name="feedback_subject">Titan Game Feedback</string>
+    <string name="feedback_body">Hi! Here are my thoughts on Titan:\n\n</string>
+    <string name="support">Support &amp; Feedback</string>
+
     <string name="story_paragraph_2">It did not wage war, nor seek dominion. It simply slept — curled beneath the mountains, dreaming a dream so vast that stars formed in its wake. Over eons, its dreaming heart crystallized: a core of living crystal, humming with the memory of everything it had ever seen.</string>
     <string name="story_paragraph_3">The mountains wore away. Kingdoms rose atop its shoulders without ever knowing what slept beneath. And in time, the last of the old fey folk — small, curious, and utterly fearless — found the crack in the stone that led to its heart.</string>
     <string name="story_paragraph_4">They call themselves Sprites now. They do not know if waking the Titan will end the world, or begin a new one.</string>

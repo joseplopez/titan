@@ -85,6 +85,8 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
     val particles = remember { mutableStateListOf<ShardParticle>() }
     val projectiles = remember { mutableStateListOf<StrikerProjectile>() }
     val landedShards = remember { mutableStateListOf<Offset>() }
+    val collectingShards = remember { mutableStateListOf<CollectingShard>() }
+    val spriteFlares = remember { mutableStateListOf<SpriteFlare>() }
 
     // Origin Sync Logic
     fun getStrikerOffset(index: Int): Offset {
@@ -178,16 +180,27 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 spritePositions.add(Offset(x, y))
             }
 
-            val toRemove = mutableListOf<Offset>()
+            val toCollect = mutableListOf<Pair<Offset, Int>>() // Shard position and sprite index
             landedShards.forEach { shard ->
-                // Both shard and sprite are now in "center-relative" ground coordinates
-                if (spritePositions.any { sprite -> (shard - sprite).getDistance() < 30f }) {
-                    toRemove.add(shard)
+                // Check Thorns first
+                val thornIndex = spritePositions.take(visibleThorns).indexOfFirst { sprite -> (shard - sprite).getDistance() < 30f }
+                if (thornIndex != -1) {
+                    toCollect.add(shard to thornIndex)
+                } else {
+                    // Then Gatherers
+                    val gathererIndex = spritePositions.drop(visibleThorns).take(visibleGatherers).indexOfFirst { sprite -> (shard - sprite).getDistance() < 30f }
+                    if (gathererIndex != -1) {
+                        toCollect.add(shard to (visibleThorns + gathererIndex))
+                    }
                 }
             }
             
-            if (toRemove.isNotEmpty()) {
-                landedShards.removeAll(toRemove)
+            if (toCollect.isNotEmpty()) {
+                toCollect.forEach { (shard, spriteIdx) ->
+                    landedShards.remove(shard)
+                    collectingShards.add(CollectingShard(System.nanoTime(), shard, spriteIdx, animTime))
+                    spriteFlares.add(SpriteFlare(System.nanoTime(), spriteIdx, animTime))
+                }
             }
         }
     }
@@ -369,7 +382,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                             }
                         }
                         
-                        GroundArea(state, animTime, landedShards, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        GroundArea(state, animTime, landedShards, collectingShards, spriteFlares, modifier = Modifier.fillMaxWidth().height(80.dp))
                     }
                     
                     // Feedback Layer (Unclipped)
@@ -806,7 +819,7 @@ fun TitanCanvas(
             else -> listOf(MysticBlue, VoidIndigo)
         }
 
-        drawPath(path = path, brush = Brush.radialGradient(colors = stoneColors, center = center, radius = radius * 1.5f))
+        drawPath(path = path, brush = Brush.radialGradient(colors = stoneColors, center = center, radius = (radius * 1.5f).coerceAtLeast(1f)))
         
         drawPath(path = path, color = veinColor.copy(alpha = 0.2f * glowIntensity))
         
@@ -857,19 +870,23 @@ fun TitanCanvas(
 }
 
 @Composable
-fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, modifier: Modifier = Modifier) {
+fun GroundArea(
+    state: GameState, 
+    animTime: Long, 
+    landedShards: List<Offset>, 
+    collectingShards: MutableList<CollectingShard>,
+    spriteFlares: MutableList<SpriteFlare>,
+    modifier: Modifier = Modifier
+) {
     Box(modifier = modifier) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
             val groundAreaWidthPx = width
             
-            // Draw Shards
+            // Draw Landed Shards
             landedShards.forEach { shard ->
                 val drawPos = Offset(width / 2 + shard.x, shard.y)
-                
-                // Suction effect: if a sprite is nearby, draw it smaller
-                // (This is a visual simplification, real state removal happens in effect)
                 drawCircle(
                     color = EmberGold, 
                     radius = 2.dp.toPx(), 
@@ -877,21 +894,67 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
                     alpha = 0.7f
                 )
             }
-            
-            // Draw Gatherers (Harmonic, smooth movement)
-            repeat(state.gatherersCount) { i ->
+
+            // Cleanup old flares
+            spriteFlares.removeAll { animTime - it.startTime > 300 }
+
+            // Helper to get sprite pos
+            fun getThornPos(i: Int): Offset {
+                val patrolWidth = groundAreaWidthPx * 0.9f
+                val hSpeed = 0.0006f + (i * 0.0001f)
+                val vSpeed = 0.0004f + (i * 0.00008f)
+                val isIdle = landedShards.isEmpty() && collectingShards.none { it.spriteIndex == i }
+                val loopX = if (isIdle) sin(animTime * 0.008f + i).toFloat() * 15f else 0f
+                val loopY = if (isIdle) cos(animTime * 0.008f + i).toFloat() * 15f else 0f
+                val x = (sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2) + loopX
+                val y = (height * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.5f)) + loopY
+                return Offset(width / 2 + x, y)
+            }
+
+            fun getGathererPos(i: Int): Offset {
                 val patrolWidth = groundAreaWidthPx * 0.95f
                 val hSpeed = 0.0004f + (i * 0.00007f)
                 val vSpeed = 0.00025f + (i * 0.00005f)
-                
-                // Idle Play: If no shards, add little loops
-                val isIdle = landedShards.isEmpty()
+                val isIdle = landedShards.isEmpty() && collectingShards.none { it.spriteIndex == state.thornSprites + i }
                 val loopX = if (isIdle) sin(animTime * 0.005f + i).toFloat() * 10f else 0f
                 val loopY = if (isIdle) cos(animTime * 0.005f + i).toFloat() * 10f else 0f
-                
                 val x = (sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2) + loopX
                 val y = (height * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.5f)) + loopY
-                val pos = Offset(width / 2 + x, y)
+                return Offset(width / 2 + x, y)
+            }
+            
+            // Draw Collecting Shards (Suction)
+            val toRemoveCollecting = mutableListOf<CollectingShard>()
+            collectingShards.forEach { cs ->
+                val elapsed = animTime - cs.startTime
+                val progress = (elapsed.toFloat() / 300f).coerceIn(0f, 1f)
+                
+                if (progress >= 1f) {
+                    toRemoveCollecting.add(cs)
+                } else {
+                    val targetPos = if (cs.spriteIndex < state.thornSprites) {
+                        getThornPos(cs.spriteIndex)
+                    } else {
+                        getGathererPos(cs.spriteIndex - state.thornSprites)
+                    }
+                    
+                    val startPos = Offset(width / 2 + cs.initialPos.x, cs.initialPos.y)
+                    val currentPos = startPos + (targetPos - startPos) * progress
+                    
+                    drawCircle(
+                        color = EmberGold,
+                        radius = 2.dp.toPx() * (1f - progress),
+                        center = currentPos,
+                        alpha = 0.7f * (1f - progress)
+                    )
+                }
+            }
+            collectingShards.removeAll(toRemoveCollecting)
+            
+            // Draw Gatherers
+            repeat(state.gatherersCount) { i ->
+                val pos = getGathererPos(i)
+                val spriteIdx = state.thornSprites + i
 
                 // Wings (Butterfly)
                 val wingFlap = sin(animTime * 0.003f + i).toFloat()
@@ -907,21 +970,31 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
                 
                 drawCircle(brush = Brush.radialGradient(colors = listOf(Color(0xFF4CAF50), Color.Transparent), center = pos, radius = 6.dp.toPx()), center = pos, radius = 6.dp.toPx())
                 drawCircle(color = Color.White, radius = 1.5.dp.toPx(), center = pos)
+
+                // Pop Flare
+                val flare = spriteFlares.find { it.spriteIndex == spriteIdx }
+                if (flare != null) {
+                    val flareProgress = (animTime - flare.startTime).toFloat() / 300f
+                    val flareAlpha = (1f - flareProgress).coerceIn(0f, 1f)
+                    val flareRadius = 15.dp.toPx() * flareProgress
+                    if (flareRadius > 0f) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFF4CAF50).copy(alpha = flareAlpha), Color.Transparent),
+                                center = pos,
+                                radius = flareRadius
+                            ),
+                            center = pos,
+                            radius = flareRadius
+                        )
+                    }
+                }
             }
             
-            // Draw Thorns (Aggressive, distinct paths)
+            // Draw Thorns
             repeat(state.thornSprites) { i ->
-                val patrolWidth = groundAreaWidthPx * 0.9f
-                val hSpeed = 0.0006f + (i * 0.0001f)
-                val vSpeed = 0.0004f + (i * 0.00008f)
-                
-                val isIdle = landedShards.isEmpty()
-                val loopX = if (isIdle) sin(animTime * 0.008f + i).toFloat() * 15f else 0f
-                val loopY = if (isIdle) cos(animTime * 0.008f + i).toFloat() * 15f else 0f
-
-                val x = (sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2) + loopX
-                val y = (height * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.5f)) + loopY
-                val pos = Offset(width / 2 + x, y)
+                val pos = getThornPos(i)
+                val spriteIdx = i
 
                 // Wings (Sharp/Jagged butterfly)
                 val wingFlap = sin(animTime * 0.005f + i).toFloat()
@@ -939,6 +1012,25 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
                 
                 drawCircle(brush = Brush.radialGradient(colors = listOf(Color.Red, Color.Transparent), center = pos, radius = 8.dp.toPx()), center = pos, radius = 8.dp.toPx())
                 drawCircle(color = Color.White, radius = 2.dp.toPx(), center = pos)
+
+                // Pop Flare
+                val flare = spriteFlares.find { it.spriteIndex == spriteIdx }
+                if (flare != null) {
+                    val flareProgress = (animTime - flare.startTime).toFloat() / 300f
+                    val flareAlpha = (1f - flareProgress).coerceIn(0f, 1f)
+                    val flareRadius = 20.dp.toPx() * flareProgress
+                    if (flareRadius > 0f) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color.Red.copy(alpha = flareAlpha), Color.Transparent),
+                                center = pos,
+                                radius = flareRadius
+                            ),
+                            center = pos,
+                            radius = flareRadius
+                        )
+                    }
+                }
             }
         }
     }
@@ -965,13 +1057,16 @@ fun Weakspot(crack: com.centelles.titan.logic.Crack, boxSizePx: Float, onTap: ()
 
 // Draw a mote inside a Canvas relative to the Canvas center
 fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMote(color: Color, offset: Offset, size: Float = 6f) {
-    drawCircle(brush = Brush.radialGradient(colors = listOf(color, Color.Transparent), center = center + offset, radius = size * 2), center = center + offset, radius = size * 2)
+    val gradientRadius = (size * 2).coerceAtLeast(0.1f)
+    drawCircle(brush = Brush.radialGradient(colors = listOf(color, Color.Transparent), center = center + offset, radius = gradientRadius), center = center + offset, radius = size * 2)
     drawCircle(color = color, radius = size / 2, center = center + offset)
 }
 
 data class DamageNumber(val id: Long, val amount: Double, val centerRelativePos: Offset, val isCrit: Boolean = false)
 data class ShardParticle(val id: Long, val centerRelativePos: Offset, val randomX: Float, val randomY: Float, val startTime: Long)
 data class StrikerProjectile(val id: Long, val start: Offset, val target: Offset, val damage: Double)
+data class CollectingShard(val id: Long, val initialPos: Offset, val spriteIndex: Int, val startTime: Long)
+data class SpriteFlare(val id: Long, val spriteIndex: Int, val startTime: Long)
 
 @Composable
 fun FloatingDamageText(dn: DamageNumber, onAnimationEnd: () -> Unit) {

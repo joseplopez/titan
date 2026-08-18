@@ -1,16 +1,20 @@
 package com.centelles.titan.ui
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +42,8 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val activity = context as? Activity
+    
+    var showFeedbackDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = VoidIndigo,
@@ -95,6 +101,21 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
                         modifier = Modifier.weight(1f),
                         onClick = { activity?.let { viewModel.watchAdForBoost(it) } }
                     )
+                }
+            }
+
+            item {
+                ArcaneButton(
+                    onClick = { showFeedbackDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = MysticBlue,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SpectralCyan.copy(alpha = 0.3f))
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, tint = SpectralCyan, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.support), style = MaterialTheme.typography.labelMedium, color = Color.White)
+                    }
                 }
             }
             
@@ -208,7 +229,103 @@ fun UpgradesScreen(viewModel: GameViewModel, onBack: () -> Unit) {
             
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
+
+        if (showFeedbackDialog) {
+            FeedbackDialog(onDismiss = { showFeedbackDialog = false })
+        }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FeedbackDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var rating by remember { mutableIntStateOf(0) }
+    
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        content = {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                ArcanePanel(modifier = Modifier.fillMaxWidth(0.85f)) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            stringResource(R.string.enjoying_titan),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MoonMist,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.feedback_prompt),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MoonMist.copy(alpha = 0.7f)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            repeat(5) { index ->
+                                val starIndex = index + 1
+                                Icon(
+                                    imageVector = if (rating >= starIndex) Icons.Default.Star else Icons.Default.StarOutline,
+                                    contentDescription = null,
+                                    tint = if (rating >= starIndex) EmberGold else MoonMist.copy(alpha = 0.3f),
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clickable { rating = starIndex }
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(32.dp))
+                        
+                        if (rating > 0) {
+                            ArcaneButton(
+                                onClick = {
+                                    if (rating >= 4) {
+                                        val playStorePackage = "com.centelles.titan"
+                                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                                            data = Uri.parse("market://details?id=$playStorePackage")
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$playStorePackage")))
+                                        }
+                                    } else {
+                                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                            data = Uri.parse("mailto:joseplcatz@gmail.com")
+                                            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.feedback_subject))
+                                            putExtra(Intent.EXTRA_TEXT, context.getString(R.string.feedback_body))
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, "Send Email"))
+                                    }
+                                    onDismiss()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                containerColor = if (rating >= 4) EmberGold else ArcanePurple
+                            ) {
+                                Text(
+                                    if (rating >= 4) stringResource(R.string.rate_on_play_store) else stringResource(R.string.send_feedback),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (rating >= 4) VoidIndigo else Color.White
+                                )
+                            }
+                        }
+                        
+                        TextButton(onClick = onDismiss, modifier = Modifier.padding(top = 8.dp)) {
+                            Text(stringResource(R.string.cancel), color = MoonMist.copy(alpha = 0.5f))
+                        }
+                    }
+                }
+            }
+        }
+    )
 }
 
 @Composable
