@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -480,22 +481,23 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(stringResource(R.string.recruit_sprites_label, state.currentSpriteCount, state.spriteCapacity), style = MaterialTheme.typography.labelSmall, color = MoonMist)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RecruitButton(stringResource(R.string.striker), state.strikersCount, state.getStrikerCost(), state.shardsBanked >= state.getStrikerCost() && state.currentSpriteCount < state.spriteCapacity, SpectralCyan) { viewModel.recruitStriker() }
-                                RecruitButton(stringResource(R.string.gatherer), state.gatherersCount, state.getGathererCost(), state.shardsBanked >= state.getGathererCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF4CAF50)) { viewModel.recruitGatherer() }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            RecruitButton(stringResource(R.string.striker), state.strikersCount, state.getStrikerCost(), state.shardsBanked >= state.getStrikerCost() && state.currentSpriteCount < state.spriteCapacity, SpectralCyan, { StrikerIcon(Modifier.size(18.dp)) }) { viewModel.recruitStriker() }
+                            RecruitButton(stringResource(R.string.gatherer), state.gatherersCount, state.getGathererCost(), state.shardsBanked >= state.getGathererCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF4CAF50), { GathererIcon(Modifier.size(18.dp)) }) { viewModel.recruitGatherer() }
+                            
+                            if (state.isUpgradeUnlocked("unlock_ember")) {
+                                RecruitButton(stringResource(R.string.ember), state.emberSprites, state.getEmberCost(), state.shardsBanked >= state.getEmberCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFFFF5722), { EmberIcon(Modifier.size(18.dp)) }) { viewModel.recruitEmber() }
                             }
-                            if (state.isUpgradeUnlocked("unlock_ember") || state.isUpgradeUnlocked("unlock_frost") || state.isUpgradeUnlocked("unlock_thorn")) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (state.isUpgradeUnlocked("unlock_ember")) RecruitButton(stringResource(R.string.ember), state.emberSprites, state.getEmberCost(), state.shardsBanked >= state.getEmberCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFFFF5722)) { viewModel.recruitEmber() }
-                                    if (state.isUpgradeUnlocked("unlock_frost")) RecruitButton(stringResource(R.string.frost), state.frostSprites, state.getFrostCost(), state.shardsBanked >= state.getFrostCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF03A9F4)) { viewModel.recruitFrost() }
-                                }
-                                if (state.isUpgradeUnlocked("unlock_thorn")) {
-                                    Row(modifier = Modifier.fillMaxWidth()) {
-                                        RecruitButton(stringResource(R.string.thorn), state.thornSprites, state.getThornCost(), state.shardsBanked >= state.getThornCost() && state.currentSpriteCount < state.spriteCapacity, Color.Red) { viewModel.recruitThorn() }
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
+                            if (state.isUpgradeUnlocked("unlock_frost")) {
+                                RecruitButton(stringResource(R.string.frost), state.frostSprites, state.getFrostCost(), state.shardsBanked >= state.getFrostCost() && state.currentSpriteCount < state.spriteCapacity, Color(0xFF03A9F4), { FrostIcon(Modifier.size(18.dp)) }) { viewModel.recruitFrost() }
+                            }
+                            if (state.isUpgradeUnlocked("unlock_thorn")) {
+                                RecruitButton(stringResource(R.string.thorn), state.thornSprites, state.getThornCost(), state.shardsBanked >= state.getThornCost() && state.currentSpriteCount < state.spriteCapacity, Color.Red, { ThornIcon(Modifier.size(18.dp)) }) { viewModel.recruitThorn() }
                             }
                         }
                     }
@@ -1136,13 +1138,129 @@ fun StatItem(label: String, value: String) {
 }
 
 @Composable
-fun RowScope.RecruitButton(label: String, count: Int, cost: Double, enabled: Boolean, color: Color, onClick: () -> Unit) {
+fun ShardIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val path = Path().apply {
+            moveTo(size.width / 2, 0f)
+            lineTo(size.width * 0.9f, size.height * 0.4f)
+            lineTo(size.width / 2, size.height)
+            lineTo(size.width * 0.1f, size.height * 0.4f)
+            close()
+        }
+        drawPath(path, color = EmberGold)
+        drawPath(path, color = Color.White.copy(alpha = 0.3f), style = Stroke(width = 1.dp.toPx()))
+    }
+}
+
+@Composable
+fun StrikerIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val wingPath = Path().apply {
+            moveTo(size.width / 2, size.height / 2)
+            quadraticTo(size.width * 0.2f, size.height * 0.1f, 0f, size.height * 0.4f)
+            quadraticTo(size.width * 0.2f, size.height * 0.7f, size.width / 2, size.height / 2)
+            moveTo(size.width / 2, size.height / 2)
+            quadraticTo(size.width * 0.8f, size.height * 0.1f, size.width, size.height * 0.4f)
+            quadraticTo(size.width * 0.8f, size.height * 0.7f, size.width / 2, size.height / 2)
+        }
+        drawPath(wingPath, color = SpectralCyan.copy(alpha = 0.6f))
+        drawCircle(color = Color.White, radius = 2f, center = center)
+    }
+}
+
+@Composable
+fun GathererIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val wingPath = Path().apply {
+            moveTo(size.width / 2, size.height / 2)
+            quadraticTo(size.width * 0.2f, size.height * 0.2f, size.width * 0.1f, size.height * 0.5f)
+            quadraticTo(size.width * 0.2f, size.height * 0.8f, size.width / 2, size.height / 2)
+            moveTo(size.width / 2, size.height / 2)
+            quadraticTo(size.width * 0.8f, size.height * 0.2f, size.width * 0.9f, size.height * 0.5f)
+            quadraticTo(size.width * 0.8f, size.height * 0.8f, size.width / 2, size.height / 2)
+        }
+        drawPath(wingPath, color = Color(0xFF4CAF50).copy(alpha = 0.6f))
+        drawCircle(color = Color.White, radius = 2f, center = center)
+    }
+}
+
+@Composable
+fun EmberIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val path = Path().apply {
+            moveTo(size.width / 2, size.height * 0.9f)
+            quadraticTo(size.width * 0.1f, size.height * 0.6f, size.width * 0.4f, size.height * 0.1f)
+            quadraticTo(size.width * 0.5f, size.height * 0.4f, size.width * 0.7f, size.height * 0.2f)
+            quadraticTo(size.width * 0.9f, size.height * 0.7f, size.width / 2, size.height * 0.9f)
+        }
+        drawPath(path, color = Color(0xFFFF5722).copy(alpha = 0.8f))
+    }
+}
+
+@Composable
+fun FrostIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        repeat(6) { i ->
+            val angle = Math.toRadians(i * 60.0)
+            val end = center + Offset(cos(angle).toFloat() * size.width / 2, sin(angle).toFloat() * size.height / 2)
+            drawLine(color = Color(0xFF03A9F4), start = center, end = end, strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
+        }
+    }
+}
+
+@Composable
+fun ThornIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val wingPath = Path().apply {
+            moveTo(size.width / 2, size.height / 2)
+            lineTo(size.width * 0.1f, size.height * 0.2f)
+            lineTo(size.width * 0.2f, size.height * 0.6f)
+            close()
+            moveTo(size.width / 2, size.height / 2)
+            lineTo(size.width * 0.9f, size.height * 0.2f)
+            lineTo(size.width * 0.8f, size.height * 0.6f)
+            close()
+        }
+        drawPath(wingPath, color = Color.Red.copy(alpha = 0.7f))
+    }
+}
+
+@Composable
+fun RecruitButton(
+    label: String, 
+    count: Int, 
+    cost: Double, 
+    enabled: Boolean, 
+    color: Color, 
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit
+) {
     val haptic = LocalHapticFeedback.current
-    ArcaneButton(onClick = { onClick(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }, enabled = enabled, modifier = Modifier.weight(1f), containerColor = MysticBlue, contentPadding = PaddingValues(4.dp)) {
+    ArcaneButton(
+        onClick = { onClick(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }, 
+        enabled = enabled, 
+        containerColor = MysticBlue, 
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = color)
-            Text("(${NumberFormatter.format(cost)})", fontSize = 10.sp, color = EmberGold.copy(alpha = if (enabled) 1f else 0.5f))
-            Text("x$count", fontSize = 10.sp, color = MoonMist.copy(alpha = 0.7f))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                icon()
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(label, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("x$count", fontSize = 11.sp, color = MoonMist.copy(alpha = 0.7f))
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    NumberFormatter.format(cost), 
+                    fontSize = 12.sp, 
+                    color = EmberGold.copy(alpha = if (enabled) 1f else 0.5f),
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                ShardIcon(Modifier.size(10.dp))
+            }
         }
     }
 }
