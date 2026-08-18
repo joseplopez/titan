@@ -149,56 +149,37 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
         if ((state.thornSprites > 0 || state.gatherersCount > 0) && landedShards.isNotEmpty()) {
             val visibleThorns = state.thornSprites
             val visibleGatherers = state.gatherersCount
-            val groundAreaHeight = with(density) { 80.dp.toPx() }
+            val groundAreaHeight = with(density) { 60.dp.toPx() } // Match UI height
             
-            val cleanPaths = mutableListOf<Offset>()
+            val spritePositions = mutableListOf<Offset>()
             
+            // Centralized sprite position logic (exactly matches drawing logic)
             repeat(visibleThorns) { i ->
-                val patrolWidth = groundAreaWidthPx * 1.3f
-                val hSpeed1 = 0.0006f + (i * 0.00005f)
-                val hSpeed2 = 0.00035f + (i * 0.000025f)
-                val vSpeed1 = 0.00045f + (i * 0.00004f)
-                val vSpeed2 = 0.00025f + (i * 0.00002f)
+                val patrolWidth = groundAreaWidthPx * 0.9f
+                val hSpeed = 0.0006f + (i * 0.0001f)
+                val vSpeed = 0.0004f + (i * 0.00008f)
                 
-                // Acceleration factors that change every 4 seconds
-                val timeBlock = animTime / 4000
-                val r = java.util.Random(timeBlock + i * 100)
-                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
-                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
-                
-                val hAccel = sin(animTime * 0.0002f + i * 1.1f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.00015f + i * 0.7f).toFloat() * vAccelFactor
-                
-                val x = (sin(animTime * hSpeed1 + i * 2.1f + hAccel) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
-                val y = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.4f) * 0.3f) * 0.8f)
-                cleanPaths.add(Offset(x.toFloat(), y.toFloat()))
+                val x = sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2
+                // Expanded vertical range to cover top to bottom (0.1 to 0.9 of height)
+                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.4f)
+                spritePositions.add(Offset(x, y))
             }
             
             repeat(visibleGatherers) { i ->
-                val patrolWidth = groundAreaWidthPx * 1.35f
-                val hSpeed1 = 0.0004f + (i * 0.00005f)
-                val hSpeed2 = 0.00025f + (i * 0.00003f)
-                val vSpeed1 = 0.00025f + (i * 0.00006f)
-                val vSpeed2 = 0.00015f + (i * 0.00003f)
+                val patrolWidth = groundAreaWidthPx * 0.95f
+                val hSpeed = 0.0004f + (i * 0.00007f)
+                val vSpeed = 0.00025f + (i * 0.00005f)
                 
-                // Acceleration factors that change every 5 seconds
-                val timeBlock = animTime / 5000
-                val r = java.util.Random(timeBlock + i * 200)
-                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
-                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
-                
-                val hAccel = sin(animTime * 0.0002f + i * 0.9f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.00015f + i * 1.4f).toFloat() * vAccelFactor
-                
-                val x = (sin(animTime * hSpeed1 + i * 0.8f + hAccel) * 0.6f + sin(animTime * hSpeed2 + i * 1.9f) * 0.4f) * patrolWidth / 2
-                val y = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.4f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
-                cleanPaths.add(Offset(x.toFloat(), y.toFloat()))
+                val x = sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2
+                // Expanded vertical range to cover top to bottom (0.2 to 0.8 of height)
+                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.3f)
+                spritePositions.add(Offset(x, y))
             }
 
             val toRemove = mutableListOf<Offset>()
-            val shardsSnapshot = landedShards.toList()
-            shardsSnapshot.forEach { shard ->
-                if (cleanPaths.any { sprite -> (shard - sprite).getDistance() < 20f }) {
+            landedShards.forEach { shard ->
+                // Both shard and sprite are now in "center-relative" ground coordinates
+                if (spritePositions.any { sprite -> (shard - sprite).getDistance() < 30f }) {
                     toRemove.add(shard)
                 }
             }
@@ -717,67 +698,46 @@ fun TitanCanvas(
 }
 
 @Composable
-fun GroundArea(state: com.centelles.titan.logic.GameState, animTime: Long, landedShards: List<Offset>, modifier: Modifier = Modifier) {
+fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, modifier: Modifier = Modifier) {
     Box(modifier = modifier) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
+            val groundAreaWidthPx = width
             
-            // Draw Shards (Entity-based removal)
+            // Draw Shards
             landedShards.forEach { shard ->
-                val centerRelative = Offset(width / 2 + shard.x, shard.y)
+                val drawPos = Offset(width / 2 + shard.x, shard.y)
                 drawCircle(
                     color = EmberGold, 
                     radius = 2.dp.toPx(), 
-                    center = centerRelative,
+                    center = drawPos,
                     alpha = 0.7f
                 )
             }
             
-            // Draw Gatherers (Complex random-looking paths with acceleration)
-            val visibleGatherers = state.gatherersCount
-            repeat(visibleGatherers) { i ->
-                val patrolWidth = width * 1.35f
-                val hSpeed1 = 0.0004f + (i * 0.00005f)
-                val hSpeed2 = 0.00025f + (i * 0.00003f)
-                val vSpeed1 = 0.00025f + (i * 0.00006f)
-                val vSpeed2 = 0.00015f + (i * 0.00003f)
+            // Draw Gatherers (Harmonic, smooth movement)
+            repeat(state.gatherersCount) { i ->
+                val patrolWidth = groundAreaWidthPx * 0.95f
+                val hSpeed = 0.0004f + (i * 0.00007f)
+                val vSpeed = 0.00025f + (i * 0.00005f)
                 
-                // Acceleration factors that change every 5 seconds
-                val timeBlock = animTime / 5000
-                val r = java.util.Random(timeBlock + i * 200)
-                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
-                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
+                val x = sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2
+                val y = height * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.3f)
                 
-                val hAccel = sin(animTime * 0.0002f + i * 0.9f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.00015f + i * 1.4f).toFloat() * vAccelFactor
-                
-                val x = (width / 2) + (sin(animTime * hSpeed1 + i * 0.8f + hAccel) * 0.6f + sin(animTime * hSpeed2 + i * 1.9f) * 0.4f) * patrolWidth / 2
-                val y = height * (0.5f + (sin(animTime * vSpeed1 + i * 1.4f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
-                drawCircle(color = Color(0xFF4CAF50), radius = 3f, center = Offset(x.toFloat(), y.toFloat()))
+                drawCircle(color = Color(0xFF4CAF50), radius = 3.dp.toPx(), center = Offset(width / 2 + x, y))
             }
             
-            // Draw Thorns (Complex random-looking paths with acceleration)
-            val visibleThorns = state.thornSprites
-            repeat(visibleThorns) { i ->
-                val patrolWidth = width * 1.3f
-                val hSpeed1 = 0.0006f + (i * 0.00005f)
-                val hSpeed2 = 0.00035f + (i * 0.000025f)
-                val vSpeed1 = 0.00045f + (i * 0.00004f)
-                val vSpeed2 = 0.00025f + (i * 0.00002f)
+            // Draw Thorns (Aggressive, distinct paths)
+            repeat(state.thornSprites) { i ->
+                val patrolWidth = groundAreaWidthPx * 0.9f
+                val hSpeed = 0.0006f + (i * 0.0001f)
+                val vSpeed = 0.0004f + (i * 0.00008f)
                 
-                // Acceleration factors that change every 4 seconds
-                val timeBlock = animTime / 4000
-                val r = java.util.Random(timeBlock + i * 100)
-                val hAccelFactor = 1.0f + r.nextFloat() * 0.5f
-                val vAccelFactor = 0.8f + r.nextFloat() * 0.5f
-
-                val hAccel = sin(animTime * 0.0002f + i * 1.1f).toFloat() * hAccelFactor
-                val vAccel = sin(animTime * 0.00015f + i * 0.7f).toFloat() * vAccelFactor
+                val x = sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2
+                val y = height * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.4f)
                 
-                val x = (width / 2) + (sin(animTime * hSpeed1 + i * 2.1f + hAccel) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
-                val y = height * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f + vAccel) * 0.7f + sin(animTime * vSpeed2 + i * 0.3f) * 0.3f) * 0.8f)
-                drawCircle(color = Color.Red, radius = 5f, center = Offset(x.toFloat(), y.toFloat()))
+                drawCircle(color = Color.Red, radius = 5.dp.toPx(), center = Offset(width / 2 + x, y))
             }
         }
     }
