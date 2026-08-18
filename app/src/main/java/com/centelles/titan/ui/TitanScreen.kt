@@ -3,6 +3,7 @@ package com.centelles.titan.ui
 import android.app.Activity
 import android.util.Log
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -406,28 +408,57 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 Spacer(modifier = Modifier.weight(0.1f))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ArcaneButton(onClick = onNavigateToUpgrades, modifier = Modifier.weight(1f), containerColor = MysticBlue) { Text(stringResource(R.string.upgrades), style = MaterialTheme.typography.labelSmall) }
+                    ArcaneButton(
+                        onClick = onNavigateToUpgrades, 
+                        modifier = Modifier.weight(1f), 
+                        containerColor = MysticBlue,
+                        border = BorderStroke(1.5.dp, SpectralCyan.copy(alpha = 0.4f))
+                    ) { 
+                        Text(stringResource(R.string.upgrades), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) 
+                    }
                     
                     val canDescend = state.canDescend()
+                    val descendPulse = rememberInfiniteTransition(label = "descend")
+                    val pulseScale by descendPulse.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.05f,
+                        animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
+                        label = ""
+                    )
+
                     ArcaneButton(
                         onClick = { if (canDescend) showDescendDialog = true },
-                        modifier = Modifier.weight(1.2f),
-                        containerColor = if (canDescend) ArcanePurple else Color.Gray.copy(alpha = 0.5f),
-                        enabled = true
+                        modifier = Modifier.weight(1.2f).then(if (canDescend) Modifier.scale(pulseScale) else Modifier),
+                        containerColor = if (canDescend) ArcanePurple else Color(0xFF2A2A2A),
+                        enabled = true,
+                        border = if (canDescend) BorderStroke(2.dp, EmberGold) else BorderStroke(1.dp, Color.Gray.copy(alpha = 0.2f))
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 if (canDescend) stringResource(R.string.the_descent) else stringResource(R.string.reach_stage, state.currentLayerDef.finalStage),
-                                style = MaterialTheme.typography.labelSmall,
-                                textAlign = TextAlign.Center
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                textAlign = TextAlign.Center,
+                                color = if (canDescend) Color.White else MoonMist.copy(alpha = 0.4f)
                             )
                             if (canDescend) {
-                                Text("+${String.format(Locale.US, "%.1f", state.calculateStarlightReward())}⭐", fontSize = 10.sp)
+                                Text(
+                                    "+${String.format(Locale.US, "%.1f", state.calculateStarlightReward())}⭐", 
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SpectralCyan
+                                )
                             }
                         }
                     }
 
-                    ArcaneButton(onClick = { viewModel.onManualCollect(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }, modifier = Modifier.weight(1f), containerColor = EmberGold) { Text(stringResource(R.string.sweep), style = MaterialTheme.typography.labelSmall) }
+                    ArcaneButton(
+                        onClick = { viewModel.onManualCollect(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }, 
+                        modifier = Modifier.weight(1f), 
+                        containerColor = EmberGold
+                    ) { 
+                        Text(stringResource(R.string.sweep), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) 
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

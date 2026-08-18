@@ -118,9 +118,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     
                     // Apply mechanical twist: Brittle resistance in Layer 2
                     val finalDamage = if (current.currentLayerDef.mechanicalTwist == "brittle_resistance" && current.frostSprites == 0) {
-                        damagePerShot * 0.2
+                        (damagePerShot * 0.2).coerceAtLeast(1.0)
                     } else {
-                        damagePerShot
+                        damagePerShot.coerceAtLeast(1.0)
                     }
 
                     _events.tryEmit(GameEvent.StrikerHit(finalDamage, strikerIndex))

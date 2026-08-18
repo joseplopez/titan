@@ -1,6 +1,7 @@
 package com.centelles.titan.ui
 
 import android.app.Activity
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -235,6 +236,17 @@ fun UpgradeItem(
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val activity = context as? Activity
+    
+    val infiniteTransition = rememberInfiniteTransition(label = "buyPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
 
     ArcanePanel(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -271,11 +283,16 @@ fun UpgradeItem(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 },
                 enabled = canAfford && enabled,
-                containerColor = if (canAfford) EmberGold else MysticBlue,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                containerColor = if (canAfford) EmberGold.copy(alpha = pulseAlpha) else MysticBlue,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 if (enabled) {
-                    Text(costString, style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        costString, 
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (canAfford) VoidIndigo else MoonMist.copy(alpha = 0.7f)
+                    )
                 } else {
                     Text(stringResource(R.string.maxed), style = MaterialTheme.typography.labelSmall)
                 }

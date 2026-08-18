@@ -1,6 +1,6 @@
 package com.centelles.titan.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -14,12 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.centelles.titan.logic.GameState
-import com.centelles.titan.ui.theme.ArcanePurple
-import com.centelles.titan.ui.theme.MoonMist
-import com.centelles.titan.ui.theme.SpectralCyan
-import com.centelles.titan.ui.theme.VoidIndigo
+import com.centelles.titan.ui.theme.*
 import kotlinx.coroutines.delay
 
 @Composable
@@ -45,25 +43,34 @@ fun ArcaneButton(
     containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = VoidIndigo,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    border: BorderStroke? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "buttonScale")
+    
+    val finalBorder = border ?: if (enabled) BorderStroke(1.5.dp, containerColor.copy(alpha = 0.6f)) else BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
 
     Button(
         onClick = onClick,
         modifier = modifier.scale(scale),
         enabled = enabled,
         shape = RoundedCornerShape(8.dp),
+        border = finalBorder,
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.3f),
-            disabledContentColor = contentColor.copy(alpha = 0.5f)
+            disabledContainerColor = MysticBlue.copy(alpha = 0.3f), // More consistent dark base
+            disabledContentColor = MoonMist.copy(alpha = 0.4f)
         ),
         interactionSource = interactionSource,
         contentPadding = contentPadding,
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 4.dp,
+            pressedElevation = 0.dp,
+            disabledElevation = 0.dp
+        ),
         content = content
     )
 }
@@ -92,20 +99,38 @@ fun AdButton(
 
     val isReady = remainingTime <= 0L
 
+    // Pulse animation for ready ads
+    val infiniteTransition = rememberInfiniteTransition(label = "adPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
     ArcaneButton(
         onClick = onClick,
         enabled = isReady,
         modifier = modifier,
-        containerColor = if (isReady) SpectralCyan else Color.Gray.copy(alpha = 0.3f),
-        contentPadding = if (compact) PaddingValues(horizontal = 8.dp, vertical = 4.dp) else PaddingValues(8.dp)
+        containerColor = if (isReady) SpectralCyan.copy(alpha = pulseAlpha) else Color(0xFF1A1A1A),
+        contentPadding = if (compact) PaddingValues(horizontal = 8.dp, vertical = 4.dp) else PaddingValues(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (isReady) VoidIndigo else MoonMist)
+            Icon(
+                Icons.Default.PlayArrow, 
+                contentDescription = null, 
+                modifier = Modifier.size(if (compact) 14.dp else 18.dp), 
+                tint = if (isReady) VoidIndigo else MoonMist.copy(alpha = 0.5f)
+            )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 if (isReady) label else "${remainingTime / 1000}s",
-                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                color = if (isReady) VoidIndigo else MoonMist
+                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (isReady) VoidIndigo else MoonMist.copy(alpha = 0.5f)
             )
         }
     }
