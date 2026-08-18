@@ -151,7 +151,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
         if ((state.thornSprites > 0 || state.gatherersCount > 0) && landedShards.isNotEmpty()) {
             val visibleThorns = state.thornSprites
             val visibleGatherers = state.gatherersCount
-            val groundAreaHeight = with(density) { 60.dp.toPx() } // Match UI height
+            val groundAreaHeight = with(density) { 80.dp.toPx() } // Match UI height
             
             val spritePositions = mutableListOf<Offset>()
             
@@ -162,8 +162,8 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 val vSpeed = 0.0004f + (i * 0.00008f)
                 
                 val x = sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2
-                // Expanded vertical range to cover top to bottom (0.1 to 0.9 of height)
-                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.4f)
+                // Expanded vertical range to cover top to bottom (0.0 to 1.0 of height)
+                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.5f)
                 spritePositions.add(Offset(x, y))
             }
             
@@ -173,8 +173,8 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 val vSpeed = 0.00025f + (i * 0.00005f)
                 
                 val x = sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2
-                // Expanded vertical range to cover top to bottom (0.2 to 0.8 of height)
-                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.3f)
+                // Expanded vertical range to cover top to bottom (0.0 to 1.0 of height)
+                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.5f)
                 spritePositions.add(Offset(x, y))
             }
 
@@ -208,7 +208,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                 val vSpeed2 = 0.00025f + (i * 0.00002f)
                 
                 val x = (sin(animTime * hSpeed1 + i * 2.1f) * 0.7f + sin(animTime * hSpeed2 + i * 0.7f) * 0.3f) * patrolWidth / 2
-                val yInGround = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f) * 0.7f + sin(animTime * vSpeed2 + i * 0.4f) * 0.3f) * 0.4f)
+                val yInGround = groundAreaHeight * (0.5f + (sin(animTime * vSpeed1 + i * 1.3f) * 0.7f + sin(animTime * vSpeed2 + i * 0.4f) * 0.3f) * 0.5f)
                 Offset(x.toFloat(), groundAreaTopFromCenter + yInGround.toFloat())
             }
 
@@ -369,7 +369,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                             }
                         }
                         
-                        GroundArea(state, animTime, landedShards, modifier = Modifier.fillMaxWidth().height(60.dp))
+                        GroundArea(state, animTime, landedShards, modifier = Modifier.fillMaxWidth().height(80.dp))
                     }
                     
                     // Feedback Layer (Unclipped)
@@ -414,7 +414,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                         containerColor = MysticBlue,
                         border = BorderStroke(1.5.dp, SpectralCyan.copy(alpha = 0.4f))
                     ) { 
-                        Text(stringResource(R.string.upgrades), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) 
+                        Text(stringResource(R.string.upgrades), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     
                     val canDescend = state.canDescend()
@@ -890,7 +890,7 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
                 val loopY = if (isIdle) cos(animTime * 0.005f + i).toFloat() * 10f else 0f
                 
                 val x = (sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2) + loopX
-                val y = (height * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.3f)) + loopY
+                val y = (height * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.5f)) + loopY
                 val pos = Offset(width / 2 + x, y)
 
                 // Wings (Butterfly)
@@ -920,7 +920,7 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
                 val loopY = if (isIdle) cos(animTime * 0.008f + i).toFloat() * 15f else 0f
 
                 val x = (sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2) + loopX
-                val y = (height * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.4f)) + loopY
+                val y = (height * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.5f)) + loopY
                 val pos = Offset(width / 2 + x, y)
 
                 // Wings (Sharp/Jagged butterfly)

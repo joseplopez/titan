@@ -41,7 +41,7 @@ fun ArcaneButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     containerColor: Color = MaterialTheme.colorScheme.primary,
-    contentColor: Color = VoidIndigo,
+    contentColor: Color? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     border: BorderStroke? = null,
     content: @Composable RowScope.() -> Unit
@@ -49,6 +49,11 @@ fun ArcaneButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "buttonScale")
+    
+    val finalContentColor = contentColor ?: when(containerColor) {
+        EmberGold, SpectralCyan -> VoidIndigo
+        else -> Color.White
+    }
     
     val finalBorder = border ?: if (enabled) BorderStroke(1.5.dp, containerColor.copy(alpha = 0.6f)) else BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
 
@@ -60,7 +65,7 @@ fun ArcaneButton(
         border = finalBorder,
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
-            contentColor = contentColor,
+            contentColor = finalContentColor,
             disabledContainerColor = MysticBlue.copy(alpha = 0.3f), // More consistent dark base
             disabledContentColor = MoonMist.copy(alpha = 0.4f)
         ),
@@ -116,6 +121,7 @@ fun AdButton(
         enabled = isReady,
         modifier = modifier,
         containerColor = if (isReady) SpectralCyan.copy(alpha = pulseAlpha) else Color(0xFF1A1A1A),
+        contentColor = if (isReady) VoidIndigo else Color.White.copy(alpha = 0.5f),
         contentPadding = if (compact) PaddingValues(horizontal = 8.dp, vertical = 4.dp) else PaddingValues(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -123,14 +129,14 @@ fun AdButton(
                 Icons.Default.PlayArrow, 
                 contentDescription = null, 
                 modifier = Modifier.size(if (compact) 14.dp else 18.dp), 
-                tint = if (isReady) VoidIndigo else MoonMist.copy(alpha = 0.5f)
+                tint = if (isReady) VoidIndigo else Color.White.copy(alpha = 0.5f)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 if (isReady) label else "${remainingTime / 1000}s",
                 style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                color = if (isReady) VoidIndigo else MoonMist.copy(alpha = 0.5f)
+                color = if (isReady) VoidIndigo else Color.White.copy(alpha = 0.5f)
             )
         }
     }
