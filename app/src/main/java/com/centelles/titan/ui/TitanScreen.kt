@@ -574,56 +574,132 @@ fun DescendDialog(
 @Composable
 fun ElementalPulses(state: com.centelles.titan.logic.GameState, animTime: Long) {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // Ember Pulses (Capped at 15 for performance)
+        // Ember Flames (Capped at 15 for performance)
         val visibleEmbers = min(state.emberSprites, 15)
         repeat(visibleEmbers) { i ->
-            val period = 3000L
-            val localTime = animTime + i * 600L
+            val period = 2000L
+            val localTime = animTime + i * 500L
             val cycle = localTime / period
             val r = java.util.Random(cycle + i * 1234L)
-            val alphaProgress = (localTime % period).toFloat() / period
-            val alpha = if (alphaProgress < 0.5f) alphaProgress * 2f else 1f - (alphaProgress - 0.5f) * 2f
+            val progress = (localTime % period).toFloat() / period
+            val alpha = if (progress < 0.5f) progress * 2f else 1f - (progress - 0.5f) * 2f
             
             val x = (r.nextFloat() * 180f) - 90f
             val y = (r.nextFloat() * 180f) - 90f
             val pos = center + Offset(x, y)
-            val radius = 35f + r.nextFloat() * 15f
+            val baseSize = 25f + r.nextFloat() * 15f
             
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.Red.copy(alpha = alpha * 0.4f), Color.Transparent),
-                    center = pos,
-                    radius = radius
-                ),
-                center = pos,
-                radius = radius
-            )
+            val flicker = sin(animTime * 0.015f + i).toFloat() * 4f
+            
+            // 1. Red Outer Layer
+            val redPath = Path().apply {
+                moveTo(pos.x, pos.y + baseSize)
+                quadraticTo(pos.x - baseSize * 1.2f, pos.y + baseSize * 0.4f, pos.x - baseSize * 0.3f, pos.y - baseSize + flicker)
+                lineTo(pos.x, pos.y - baseSize * 0.6f + flicker)
+                quadraticTo(pos.x + baseSize * 0.1f, pos.y - baseSize * 1.6f + flicker, pos.x + baseSize * 0.4f, pos.y - baseSize * 0.8f + flicker)
+                lineTo(pos.x + baseSize * 0.6f, pos.y - baseSize * 0.2f + flicker)
+                quadraticTo(pos.x + baseSize * 1.2f, pos.y + baseSize * 0.6f, pos.x, pos.y + baseSize)
+            }
+            drawPath(path = redPath, color = Color(0xFFFF3D00).copy(alpha = alpha * 0.9f))
+
+            // 2. Orange Middle Layer
+            val orangeSize = baseSize * 0.7f
+            val orangePath = Path().apply {
+                moveTo(pos.x, pos.y + baseSize * 0.8f)
+                quadraticTo(pos.x - orangeSize, pos.y + orangeSize * 0.5f, pos.x - orangeSize * 0.2f, pos.y - orangeSize + flicker)
+                quadraticTo(pos.x + orangeSize * 0.2f, pos.y - orangeSize * 1.4f + flicker, pos.x + orangeSize * 0.6f, pos.y - orangeSize * 0.4f + flicker)
+                quadraticTo(pos.x + orangeSize, pos.y + orangeSize * 0.6f, pos.x, pos.y + baseSize * 0.8f)
+            }
+            drawPath(path = orangePath, color = Color(0xFFFF9100).copy(alpha = alpha))
+
+            // 3. Yellow/White Core
+            val yellowSize = baseSize * 0.4f
+            val yellowPath = Path().apply {
+                moveTo(pos.x, pos.y + baseSize * 0.6f)
+                quadraticTo(pos.x - yellowSize, pos.y + yellowSize * 0.6f, pos.x, pos.y - yellowSize + flicker)
+                quadraticTo(pos.x + yellowSize, pos.y + yellowSize * 0.6f, pos.x, pos.y + baseSize * 0.6f)
+            }
+            drawPath(path = yellowPath, color = Color(0xFFFFEA00).copy(alpha = alpha))
+
+            // 4. Sparkles (Stars)
+            repeat(3) { s ->
+                val sr = java.util.Random(cycle + i * 1000 + s)
+                val sProgress = ((animTime + s * 300) % 1500).toFloat() / 1500f
+                val sAlpha = 1f - sProgress
+                val sx = pos.x + (sr.nextFloat() * 60f - 30f)
+                val sy = pos.y - (baseSize * 1.2f) - (sProgress * 50f)
+                val sSize = 4f + sr.nextFloat() * 4f
+                
+                // Draw a 4-pointed star
+                val starPath = Path().apply {
+                    moveTo(sx, sy - sSize)
+                    quadraticTo(sx, sy, sx + sSize, sy)
+                    quadraticTo(sx, sy, sx, sy + sSize)
+                    quadraticTo(sx, sy, sx - sSize, sy)
+                    quadraticTo(sx, sy, sx, sy - sSize)
+                }
+                drawPath(path = starPath, color = Color(0xFFFFD166).copy(alpha = sAlpha * alpha))
+            }
         }
 
-        // Frost Pulses (Capped at 15 for performance)
+        // Frost Snowflakes (Capped at 15 for performance)
         val visibleFrosts = min(state.frostSprites, 15)
         repeat(visibleFrosts) { i ->
             val period = 4000L
             val localTime = animTime + i * 800L
             val cycle = localTime / period
             val r = java.util.Random(cycle + i * 5678L)
-            val alphaProgress = (localTime % period).toFloat() / period
-            val alpha = if (alphaProgress < 0.5f) alphaProgress * 2f else 1f - (alphaProgress - 0.5f) * 2f
+            val progress = (localTime % period).toFloat() / period
+            val alpha = if (progress < 0.5f) progress * 2f else 1f - (progress - 0.5f) * 2f
             
             val x = (r.nextFloat() * 180f) - 90f
             val y = (r.nextFloat() * 180f) - 90f
             val pos = center + Offset(x, y)
-            val radius = 40f + r.nextFloat() * 15f
+            val size = 15f + r.nextFloat() * 10f
             val iceColor = Color(0xFFADD8E6)
 
+            // Draw a simple snowflake (6 arms)
+            val rotation = animTime * 0.001f + i
+            repeat(6) { arm ->
+                val angle = Math.toRadians((arm * 60.0) + rotation.toDouble())
+                val end = pos + Offset(cos(angle).toFloat() * size, sin(angle).toFloat() * size)
+                drawLine(
+                    color = iceColor.copy(alpha = alpha),
+                    start = pos,
+                    end = end,
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+                // Small branches on each arm
+                val branchStart = pos + Offset(cos(angle).toFloat() * size * 0.5f, sin(angle).toFloat() * size * 0.5f)
+                val branchAngle1 = angle + Math.toRadians(45.0)
+                val branchAngle2 = angle - Math.toRadians(45.0)
+                val branchLen = size * 0.3f
+                drawLine(
+                    color = iceColor.copy(alpha = alpha),
+                    start = branchStart,
+                    end = branchStart + Offset(cos(branchAngle1).toFloat() * branchLen, sin(branchAngle1).toFloat() * branchLen),
+                    strokeWidth = 1.5.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = iceColor.copy(alpha = alpha),
+                    start = branchStart,
+                    end = branchStart + Offset(cos(branchAngle2).toFloat() * branchLen, sin(branchAngle2).toFloat() * branchLen),
+                    strokeWidth = 1.5.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
+            
+            // Shimmer glow
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(iceColor.copy(alpha = alpha * 0.4f), Color.Transparent),
+                    colors = listOf(iceColor.copy(alpha = alpha * 0.3f), Color.Transparent),
                     center = pos,
-                    radius = radius
+                    radius = size * 1.5f
                 ),
                 center = pos,
-                radius = radius
+                radius = size * 1.5f
             )
         }
     }
@@ -634,15 +710,38 @@ fun SpriteMotes(state: com.centelles.titan.logic.GameState, boxSizePx: Float, an
     Canvas(modifier = Modifier.fillMaxSize()) {
         val center = Offset(size.width / 2, size.height / 2)
         
-        // Strikers
+        // Strikers (Dragonfly/Needle-like wings)
         val visibleStrikers = min(state.strikersCount, 10)
         repeat(visibleStrikers) { i ->
             val rotationSpeed = 3000 + i * 500
-            val angle = ( (animTime % rotationSpeed).toFloat() / rotationSpeed) * 360f
+            val angle = ((animTime % rotationSpeed).toFloat() / rotationSpeed) * 360f
             val r = (size.width / 2) * 0.9f + (i * 5f)
-            val pos = center + Offset(cos(Math.toRadians(angle.toDouble())).toFloat() * r, sin(Math.toRadians(angle.toDouble())).toFloat() * r)
-            drawCircle(brush = Brush.radialGradient(colors = listOf(SpectralCyan, Color.Transparent), center = pos, radius = 10f), center = pos, radius = 10f)
-            drawCircle(color = SpectralCyan, radius = 3f, center = pos)
+            
+            // Loop/Play logic: If no hp or just for flair, add a secondary spiral
+            val playOffset = if (state.titanHp <= 0) sin(animTime * 0.005f + i).toFloat() * 15f else 0f
+            
+            val pos = center + Offset(
+                cos(Math.toRadians(angle.toDouble())).toFloat() * (r + playOffset), 
+                sin(Math.toRadians(angle.toDouble())).toFloat() * (r + playOffset)
+            )
+            
+            // Draw Wings (Butterfly-like gliding)
+            val wingFlap = sin(animTime * 0.004f + i).toFloat()
+            val wingPath = Path().apply {
+                // Left Wing
+                moveTo(pos.x, pos.y)
+                quadraticTo(pos.x - 15f, pos.y - 20f * wingFlap, pos.x - 25f, pos.y - 5f)
+                quadraticTo(pos.x - 15f, pos.y + 10f * wingFlap, pos.x, pos.y)
+                // Right Wing
+                moveTo(pos.x, pos.y)
+                quadraticTo(pos.x + 15f, pos.y - 20f * wingFlap, pos.x + 25f, pos.y - 5f)
+                quadraticTo(pos.x + 15f, pos.y + 10f * wingFlap, pos.x, pos.y)
+            }
+            drawPath(wingPath, color = SpectralCyan.copy(alpha = 0.4f))
+            
+            // Core
+            drawCircle(brush = Brush.radialGradient(colors = listOf(SpectralCyan, Color.Transparent), center = pos, radius = 8f), center = pos, radius = 8f)
+            drawCircle(color = Color.White, radius = 2f, center = pos)
         }
     }
 }
@@ -768,6 +867,9 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
             // Draw Shards
             landedShards.forEach { shard ->
                 val drawPos = Offset(width / 2 + shard.x, shard.y)
+                
+                // Suction effect: if a sprite is nearby, draw it smaller
+                // (This is a visual simplification, real state removal happens in effect)
                 drawCircle(
                     color = EmberGold, 
                     radius = 2.dp.toPx(), 
@@ -782,10 +884,29 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
                 val hSpeed = 0.0004f + (i * 0.00007f)
                 val vSpeed = 0.00025f + (i * 0.00005f)
                 
-                val x = sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2
-                val y = height * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.3f)
+                // Idle Play: If no shards, add little loops
+                val isIdle = landedShards.isEmpty()
+                val loopX = if (isIdle) sin(animTime * 0.005f + i).toFloat() * 10f else 0f
+                val loopY = if (isIdle) cos(animTime * 0.005f + i).toFloat() * 10f else 0f
                 
-                drawCircle(color = Color(0xFF4CAF50), radius = 3.dp.toPx(), center = Offset(width / 2 + x, y))
+                val x = (sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2) + loopX
+                val y = (height * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.3f)) + loopY
+                val pos = Offset(width / 2 + x, y)
+
+                // Wings (Butterfly)
+                val wingFlap = sin(animTime * 0.003f + i).toFloat()
+                val wingPath = Path().apply {
+                    moveTo(pos.x, pos.y)
+                    quadraticTo(pos.x - 12f, pos.y - 15f * wingFlap, pos.x - 18f, pos.y - 2f)
+                    quadraticTo(pos.x - 10f, pos.y + 8f * wingFlap, pos.x, pos.y)
+                    moveTo(pos.x, pos.y)
+                    quadraticTo(pos.x + 12f, pos.y - 15f * wingFlap, pos.x + 18f, pos.y - 2f)
+                    quadraticTo(pos.x + 10f, pos.y + 8f * wingFlap, pos.x, pos.y)
+                }
+                drawPath(wingPath, color = Color(0xFF4CAF50).copy(alpha = 0.4f))
+                
+                drawCircle(brush = Brush.radialGradient(colors = listOf(Color(0xFF4CAF50), Color.Transparent), center = pos, radius = 6.dp.toPx()), center = pos, radius = 6.dp.toPx())
+                drawCircle(color = Color.White, radius = 1.5.dp.toPx(), center = pos)
             }
             
             // Draw Thorns (Aggressive, distinct paths)
@@ -794,10 +915,30 @@ fun GroundArea(state: GameState, animTime: Long, landedShards: List<Offset>, mod
                 val hSpeed = 0.0006f + (i * 0.0001f)
                 val vSpeed = 0.0004f + (i * 0.00008f)
                 
-                val x = sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2
-                val y = height * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.4f)
+                val isIdle = landedShards.isEmpty()
+                val loopX = if (isIdle) sin(animTime * 0.008f + i).toFloat() * 15f else 0f
+                val loopY = if (isIdle) cos(animTime * 0.008f + i).toFloat() * 15f else 0f
+
+                val x = (sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2) + loopX
+                val y = (height * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.4f)) + loopY
+                val pos = Offset(width / 2 + x, y)
+
+                // Wings (Sharp/Jagged butterfly)
+                val wingFlap = sin(animTime * 0.005f + i).toFloat()
+                val wingPath = Path().apply {
+                    moveTo(pos.x, pos.y)
+                    lineTo(pos.x - 20f, pos.y - 20f * wingFlap)
+                    lineTo(pos.x - 15f, pos.y + 5f)
+                    close()
+                    moveTo(pos.x, pos.y)
+                    lineTo(pos.x + 20f, pos.y - 20f * wingFlap)
+                    lineTo(pos.x + 15f, pos.y + 5f)
+                    close()
+                }
+                drawPath(wingPath, color = Color.Red.copy(alpha = 0.5f))
                 
-                drawCircle(color = Color.Red, radius = 5.dp.toPx(), center = Offset(width / 2 + x, y))
+                drawCircle(brush = Brush.radialGradient(colors = listOf(Color.Red, Color.Transparent), center = pos, radius = 8.dp.toPx()), center = pos, radius = 8.dp.toPx())
+                drawCircle(color = Color.White, radius = 2.dp.toPx(), center = pos)
             }
         }
     }
