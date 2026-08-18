@@ -16,8 +16,15 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.centelles.titan.BuildConfig
 import com.centelles.titan.logic.GameState
 import com.centelles.titan.ui.theme.*
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.LoadAdError
 import kotlinx.coroutines.delay
 
 @Composable
@@ -139,5 +146,42 @@ fun AdButton(
                 color = if (isReady) VoidIndigo else Color.White.copy(alpha = 0.5f)
             )
         }
+    }
+}
+
+@Composable
+fun BannerAd(modifier: Modifier = Modifier) {
+    val adUnitId = if (BuildConfig.DEBUG) {
+        "ca-app-pub-3940256099942544/6300978111" // Google Test ID
+    } else {
+        "ca-app-pub-9749336798654274/9920272911" // Titan Production ID
+    }
+
+    // Standard banner height is 50dp
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                AdView(context).apply {
+                    setAdSize(AdSize.BANNER)
+                    this.adUnitId = adUnitId
+                    adListener = object : com.google.android.gms.ads.AdListener() {
+                        override fun onAdLoaded() {
+                            android.util.Log.d("TitanAds", "Banner ad loaded successfully")
+                        }
+
+                        override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                            android.util.Log.e("TitanAds", "Banner ad failed to load: ${error.message} (Code: ${error.code})")
+                        }
+                    }
+                    loadAd(AdRequest.Builder().build())
+                }
+            }
+        )
     }
 }

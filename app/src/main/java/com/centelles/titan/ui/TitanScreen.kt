@@ -47,6 +47,7 @@ import com.centelles.titan.logic.GameEvent
 import com.centelles.titan.logic.GameViewModel
 import com.centelles.titan.ui.components.ArcaneButton
 import com.centelles.titan.ui.components.ArcanePanel
+import com.centelles.titan.ui.components.BannerAd
 import com.centelles.titan.ui.theme.*
 import com.centelles.titan.util.NumberFormatter
 import kotlinx.coroutines.delay
@@ -55,6 +56,8 @@ import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.max
+import kotlin.math.pow
 import kotlin.random.Random as KotlinRandom
 
 import androidx.compose.ui.text.style.TextAlign
@@ -511,6 +514,9 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.weight(1f))
+                BannerAd()
             }
 
             if (showDescendDialog) {
@@ -596,7 +602,7 @@ fun DescendDialog(
 }
 
 @Composable
-fun ElementalPulses(state: com.centelles.titan.logic.GameState, animTime: Long) {
+fun ElementalPulses(state: GameState, animTime: Long) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         // Ember Flames (Capped at 15 for performance)
         val visibleEmbers = min(state.emberSprites, 15)
@@ -730,7 +736,7 @@ fun ElementalPulses(state: com.centelles.titan.logic.GameState, animTime: Long) 
 }
 
 @Composable
-fun SpriteMotes(state: com.centelles.titan.logic.GameState, boxSizePx: Float, animTime: Long) {
+fun SpriteMotes(state: GameState, boxSizePx: Float, animTime: Long) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val center = Offset(size.width / 2, size.height / 2)
         
@@ -922,7 +928,7 @@ fun GroundArea(
                 val patrolWidth = width * 0.95f
                 val hSpeed = 0.0004f + (i * 0.00007f)
                 val vSpeed = 0.00025f + (i * 0.00005f)
-                val isIdle = landedShards.isEmpty() && collectingShards.none { it.spriteIndex == state.thornSprites + i }
+                val isIdle = landedShards.isEmpty() && collectingShards.none { cs -> cs.spriteIndex == state.thornSprites + i }
                 val loopX = if (isIdle) sin(animTime * 0.005f + i).toFloat() * 10f else 0f
                 val loopY = if (isIdle) cos(animTime * 0.005f + i).toFloat() * 10f else 0f
                 val x = (sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2) + loopX
