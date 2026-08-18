@@ -688,12 +688,15 @@ fun TitanCanvas(
         val center = Offset(size.width / 2, size.height / 2)
         val radius = size.width * 0.4f
         val path = Path().apply {
-            moveTo(center.x, center.y - radius)
-            lineTo(center.x + radius * 0.8f, center.y - radius * 0.5f)
-            lineTo(center.x + radius * 0.9f, center.y + radius * 0.4f)
-            lineTo(center.x, center.y + radius)
-            lineTo(center.x - radius * 0.9f, center.y + radius * 0.4f)
-            lineTo(center.x - radius * 0.8f, center.y - radius * 0.5f)
+            // Crystalline Heart Shape
+            moveTo(center.x, center.y + radius) // Bottom tip
+            lineTo(center.x - radius * 0.95f, center.y + radius * 0.1f)
+            lineTo(center.x - radius * 0.85f, center.y - radius * 0.6f)
+            lineTo(center.x - radius * 0.4f, center.y - radius * 0.95f)
+            lineTo(center.x, center.y - radius * 0.55f) // Deep middle dip
+            lineTo(center.x + radius * 0.4f, center.y - radius * 0.95f)
+            lineTo(center.x + radius * 0.85f, center.y - radius * 0.6f)
+            lineTo(center.x + radius * 0.95f, center.y + radius * 0.1f)
             close()
         }
         
@@ -707,14 +710,40 @@ fun TitanCanvas(
         drawPath(path = path, brush = Brush.radialGradient(colors = stoneColors, center = center, radius = radius * 1.5f))
         
         drawPath(path = path, color = veinColor.copy(alpha = 0.2f * glowIntensity))
+        
+        // Jagged, branching cracks
         val cracksCount = ((1f - hpFraction) * 20).toInt()
         val random = java.util.Random(42)
         repeat(cracksCount) {
             val startAngle = random.nextFloat() * 360f
-            val length = random.nextFloat() * radius * 0.6f
-            val startX = center.x + cos(Math.toRadians(startAngle.toDouble())).toFloat() * radius * 0.2f
-            val startY = center.y + sin(Math.toRadians(startAngle.toDouble())).toFloat() * radius * 0.2f
-            drawLine(color = veinColor.copy(alpha = 0.6f), start = Offset(startX, startY), end = Offset(startX + cos(Math.toRadians(startAngle.toDouble())).toFloat() * length, startY + sin(Math.toRadians(startAngle.toDouble())).toFloat() * length), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            val length = random.nextFloat() * radius * 0.7f
+            val startX = center.x + cos(Math.toRadians(startAngle.toDouble())).toFloat() * radius * 0.15f
+            val startY = center.y + sin(Math.toRadians(startAngle.toDouble())).toFloat() * radius * 0.15f
+            
+            val crackPath = Path().apply {
+                var currX = startX
+                var currY = startY
+                moveTo(currX, currY)
+                val segments = 4
+                val segLen = length / segments
+                repeat(segments) {
+                    val angleOffset = (random.nextFloat() * 40 - 20)
+                    currX += cos(Math.toRadians(startAngle.toDouble() + angleOffset)).toFloat() * segLen
+                    currY += sin(Math.toRadians(startAngle.toDouble() + angleOffset)).toFloat() * segLen
+                    lineTo(currX, currY)
+                    
+                    // Small branch
+                    if (random.nextFloat() < 0.3) {
+                        val branchAngle = startAngle + (if (random.nextBoolean()) 45 else -45)
+                        val bX = currX + cos(Math.toRadians(branchAngle.toDouble())).toFloat() * (segLen * 0.6f)
+                        val bY = currY + sin(Math.toRadians(branchAngle.toDouble())).toFloat() * (segLen * 0.6f)
+                        moveTo(currX, currY)
+                        lineTo(bX, bY)
+                        moveTo(currX, currY)
+                    }
+                }
+            }
+            drawPath(path = crackPath, color = veinColor.copy(alpha = 0.6f), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
         
         val outlineColor = when(layer) {
