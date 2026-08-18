@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "336871375837",
+    "project_id": "titan-a70c3",
+    "storage_bucket": "titan-a70c3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:336871375837:android:02b92468860dc96cfeac34",
+        "android_client_info": {
+          "package_name": "com.centelles.titan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8jAIY86pLb2IU0heTWCS9ed7Ix6kMCDw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

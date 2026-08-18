@@ -5,6 +5,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.centelles.titan.data.GameRepository
+import com.centelles.titan.util.TitanAnalytics
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -169,6 +170,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val nextStage = awakeningStage + 1
         // HP scaling includes layer multiplier
         val nextMaxHp = 100.0 * 2.5.pow(nextStage) * currentLayerDef.hpMultiplier
+        
+        TitanAnalytics.logLayerReached(currentLayer, nextStage)
+        
         return copy(
             awakeningStage = nextStage,
             titanHp = nextMaxHp,
@@ -319,6 +323,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 val newLevel = current.upgrades.getOrDefault(id, 0) + 1
                 val newUpgrades = current.upgrades.toMutableMap()
                 newUpgrades[id] = newLevel
+                
+                TitanAnalytics.logUpgradeBought(id, newLevel)
+                
                 current.copy(
                     shardsBanked = current.shardsBanked - cost,
                     upgrades = newUpgrades
@@ -339,6 +346,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val nextLayer = current.currentLayer + 1
                 val deepest = max(current.deepestLayerReached, nextLayer)
+                
+                TitanAnalytics.logDescent(current.awakeningStage, reward, current.currentLayer)
                 
                 // Reset run-specific state
                 GameState(

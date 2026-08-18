@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import com.centelles.titan.logic.GameEvent
 import com.centelles.titan.ui.LayerIntroScreen
+import com.centelles.titan.util.TitanAnalytics
 import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : ComponentActivity() {
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        TitanAnalytics.initialize(this)
         enableEdgeToEdge()
         setContent {
             TitanTheme {

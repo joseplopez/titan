@@ -31,9 +31,6 @@ local.properties
 *.keystore
 *.p12
 
-# Google Services
-google-services.json
-
 # Navigation
 view.xml
 view_nav.xml
