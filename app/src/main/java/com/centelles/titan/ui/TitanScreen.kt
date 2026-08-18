@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -151,57 +152,63 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
 
     // Thorn and Gatherer Collision Detection (Cleaning up landed shards)
     LaunchedEffect(animTime) {
+        // Cleanup old flares and collecting shards
+        spriteFlares.removeAll { animTime - it.startTime > 300 }
+        collectingShards.removeAll { animTime - it.startTime > 300 }
+
         if ((state.thornSprites > 0 || state.gatherersCount > 0) && landedShards.isNotEmpty()) {
             val visibleThorns = state.thornSprites
             val visibleGatherers = state.gatherersCount
-            val groundAreaHeight = with(density) { 80.dp.toPx() } // Match UI height
+            val groundAreaHeight = with(density) { 80.dp.toPx() }
             
-            val spritePositions = mutableListOf<Offset>()
-            
-            // Centralized sprite position logic (exactly matches drawing logic)
-            repeat(visibleThorns) { i ->
-                val patrolWidth = groundAreaWidthPx * 0.9f
-                val hSpeed = 0.0006f + (i * 0.0001f)
-                val vSpeed = 0.0004f + (i * 0.00008f)
-                
-                val x = sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2
-                // Expanded vertical range to cover top to bottom (0.0 to 1.0 of height)
-                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.5f)
-                spritePositions.add(Offset(x, y))
-            }
-            
-            repeat(visibleGatherers) { i ->
-                val patrolWidth = groundAreaWidthPx * 0.95f
-                val hSpeed = 0.0004f + (i * 0.00007f)
-                val vSpeed = 0.00025f + (i * 0.00005f)
-                
-                val x = sin(animTime * hSpeed + i * 2.1f).toFloat() * patrolWidth / 2
-                // Expanded vertical range to cover top to bottom (0.0 to 1.0 of height)
-                val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 0.7f).toFloat() * 0.5f)
-                spritePositions.add(Offset(x, y))
+            // Optimization: Pre-calculate sprite positions once per frame
+            val spritePos = Array(visibleThorns + visibleGatherers) { i ->
+                if (i < visibleThorns) {
+                    val patrolWidth = groundAreaWidthPx * 0.9f
+                    val hSpeed = 0.0006f + (i * 0.0001f)
+                    val vSpeed = 0.0004f + (i * 0.00008f)
+                    val x = sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2
+                    val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + i * 1.5f).toFloat() * 0.5f)
+                    Offset(x, y)
+                } else {
+                    val j = i - visibleThorns
+                    val patrolWidth = groundAreaWidthPx * 0.95f
+                    val hSpeed = 0.0004f + (j * 0.00007f)
+                    val vSpeed = 0.00025f + (j * 0.00005f)
+                    val x = sin(animTime * hSpeed + j * 2.1f).toFloat() * patrolWidth / 2
+                    val y = groundAreaHeight * (0.5f + sin(animTime * vSpeed + j * 0.7f).toFloat() * 0.5f)
+                    Offset(x, y)
+                }
             }
 
-            val toCollect = mutableListOf<Pair<Offset, Int>>() // Shard position and sprite index
-            landedShards.forEach { shard ->
-                // Check Thorns first
-                val thornIndex = spritePositions.take(visibleThorns).indexOfFirst { sprite -> (shard - sprite).getDistance() < 30f }
-                if (thornIndex != -1) {
-                    toCollect.add(shard to thornIndex)
-                } else {
-                    // Then Gatherers
-                    val gathererIndex = spritePositions.drop(visibleThorns).take(visibleGatherers).indexOfFirst { sprite -> (shard - sprite).getDistance() < 30f }
-                    if (gathererIndex != -1) {
-                        toCollect.add(shard to (visibleThorns + gathererIndex))
+            val collectedShards = mutableListOf<Offset>()
+            val newCollecting = mutableListOf<CollectingShard>()
+            val newFlares = mutableListOf<SpriteFlare>()
+
+            // Optimize: Allocation-free distance checks
+            for (shard in landedShards) {
+                var closestSpriteIdx = -1
+                for (idx in spritePos.indices) {
+                    val dx = shard.x - spritePos[idx].x
+                    val dy = shard.y - spritePos[idx].y
+                    if (dx*dx + dy*dy < 900f) { // 30f squared
+                        closestSpriteIdx = idx
+                        break
                     }
+                }
+                
+                if (closestSpriteIdx != -1) {
+                    collectedShards.add(shard)
+                    newCollecting.add(CollectingShard(System.nanoTime(), shard, closestSpriteIdx, animTime))
+                    newFlares.add(SpriteFlare(System.nanoTime(), closestSpriteIdx, animTime))
+                    if (collectedShards.size >= 10) break // Cap per frame for smoothness
                 }
             }
             
-            if (toCollect.isNotEmpty()) {
-                toCollect.forEach { (shard, spriteIdx) ->
-                    landedShards.remove(shard)
-                    collectingShards.add(CollectingShard(System.nanoTime(), shard, spriteIdx, animTime))
-                    spriteFlares.add(SpriteFlare(System.nanoTime(), spriteIdx, animTime))
-                }
+            if (collectedShards.isNotEmpty()) {
+                landedShards.removeAll(collectedShards)
+                collectingShards.addAll(newCollecting)
+                spriteFlares.addAll(newFlares)
             }
         }
     }
@@ -214,7 +221,7 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
             val groundAreaHeight = with(density) { 80.dp.toPx() }
             val fallDistance = groundAreaTopFromCenter + groundAreaHeight / 2
             
-            val thorns = (0 until visibleThorns).map { i ->
+            val thornPos = Array(visibleThorns) { i ->
                 val patrolWidth = groundAreaWidthPx * 0.85f
                 val hSpeed1 = 0.0006f + (i * 0.00005f)
                 val hSpeed2 = 0.00035f + (i * 0.000025f)
@@ -227,21 +234,23 @@ fun TitanScreen(viewModel: GameViewModel, onNavigateToUpgrades: () -> Unit, onNa
             }
 
             val toRemove = mutableListOf<ShardParticle>()
-            val particleList = particles.toList()
-            particleList.forEach { p ->
+            particles.forEach { p ->
                 val t = animTime - p.startTime
                 val progress = (t.toFloat() / 800f).coerceIn(0f, 1f)
                 val currentX = p.centerRelativePos.x + (p.randomX * progress)
                 val currentY = p.centerRelativePos.y + (progress * fallDistance)
-                val pPos = Offset(currentX, currentY)
                 
-                if (thorns.any { tPos -> (pPos - tPos).getDistance() < 300f }) {
-                    toRemove.add(p)
+                for (tPos in thornPos) {
+                    val dx = currentX - tPos.x
+                    val dy = currentY - tPos.y
+                    if (dx*dx + dy*dy < 90000f) { // 300f squared
+                        toRemove.add(p)
+                        break
+                    }
                 }
             }
             
             if (toRemove.isNotEmpty()) {
-                Log.d("TitanCollision", "Removing ${toRemove.size} particles from ${particles.size}. FirstPartY: ${particleList.firstOrNull()?.centerRelativePos?.y}")
                 particles.removeAll(toRemove)
             }
         }
@@ -876,15 +885,14 @@ fun GroundArea(
     state: GameState, 
     animTime: Long, 
     landedShards: List<Offset>, 
-    collectingShards: MutableList<CollectingShard>,
-    spriteFlares: MutableList<SpriteFlare>,
+    collectingShards: SnapshotStateList<CollectingShard>,
+    spriteFlares: SnapshotStateList<SpriteFlare>,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
-            val groundAreaWidthPx = width
             
             // Draw Landed Shards
             landedShards.forEach { shard ->
@@ -897,15 +905,12 @@ fun GroundArea(
                 )
             }
 
-            // Cleanup old flares
-            spriteFlares.removeAll { animTime - it.startTime > 300 }
-
             // Helper to get sprite pos
             fun getThornPos(i: Int): Offset {
-                val patrolWidth = groundAreaWidthPx * 0.9f
+                val patrolWidth = width * 0.9f
                 val hSpeed = 0.0006f + (i * 0.0001f)
                 val vSpeed = 0.0004f + (i * 0.00008f)
-                val isIdle = landedShards.isEmpty() && collectingShards.none { it.spriteIndex == i }
+                val isIdle = landedShards.isEmpty() && collectingShards.none { cs -> cs.spriteIndex == i }
                 val loopX = if (isIdle) sin(animTime * 0.008f + i).toFloat() * 15f else 0f
                 val loopY = if (isIdle) cos(animTime * 0.008f + i).toFloat() * 15f else 0f
                 val x = (sin(animTime * hSpeed + i).toFloat() * patrolWidth / 2) + loopX
@@ -914,7 +919,7 @@ fun GroundArea(
             }
 
             fun getGathererPos(i: Int): Offset {
-                val patrolWidth = groundAreaWidthPx * 0.95f
+                val patrolWidth = width * 0.95f
                 val hSpeed = 0.0004f + (i * 0.00007f)
                 val vSpeed = 0.00025f + (i * 0.00005f)
                 val isIdle = landedShards.isEmpty() && collectingShards.none { it.spriteIndex == state.thornSprites + i }
@@ -926,14 +931,11 @@ fun GroundArea(
             }
             
             // Draw Collecting Shards (Suction)
-            val toRemoveCollecting = mutableListOf<CollectingShard>()
-            collectingShards.forEach { cs ->
+            for (cs in collectingShards) {
                 val elapsed = animTime - cs.startTime
                 val progress = (elapsed.toFloat() / 300f).coerceIn(0f, 1f)
                 
-                if (progress >= 1f) {
-                    toRemoveCollecting.add(cs)
-                } else {
+                if (progress < 1f) {
                     val targetPos = if (cs.spriteIndex < state.thornSprites) {
                         getThornPos(cs.spriteIndex)
                     } else {
@@ -951,7 +953,6 @@ fun GroundArea(
                     )
                 }
             }
-            collectingShards.removeAll(toRemoveCollecting)
             
             // Draw Gatherers
             repeat(state.gatherersCount) { i ->
