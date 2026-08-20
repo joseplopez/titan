@@ -51,13 +51,21 @@ This document outlines the strategic feature additions for **Titan** based on to
 *   **Concept**: Detailed breakdown of DPS/CPS calculations.
 *   **UI**: Modal triggered by clicking the DPS/CPS values.
 
+### 8. Robust Persistence & Migrations
+*   **Priority**: High (Prevents progress loss)
+*   **Implementation Plan**:
+    *   **Logic**: Transition from JSON-in-DataStore to **Room Database** for structured storage.
+    *   **Versioning**: Add a `version` field to the schema.
+    *   **Migrations**: Implement Room migrations to handle new spirits, layers, or stats without wiping data.
+    *   **Fallback**: If a migration fails, attempt to load the old JSON as a backup to salvage the `totalLifetimeShards` and `starlight`.
+
 ---
 
 ## 🛠 Technical Requirements
 
 | Component | Requirement |
 | :--- | :--- |
-| **Storage** | Update `GameState` and `Room` to include `lastSaveTimestamp`. |
+| **Storage** | Migrate `GameState` from DataStore to Room; include `version` and `lastSaveTimestamp`. |
 | **Analytics** | Log `lucky_shard_tapped` and `quest_completed` events. |
 | **UI** | New `Dialog` components for Offline Progress, Quests, and Statistics. |
 
@@ -65,6 +73,7 @@ This document outlines the strategic feature additions for **Titan** based on to
 
 ## 📈 Next Steps Recommendation
 
-1.  **Phase 1**: Implement **Offline Progress**. It provides the immediate dopamine hit needed for Day 2 retention.
-2.  **Phase 2**: Add the **Lucky Shard**. It makes the main game screen feel alive and reactive.
-3.  **Phase 3**: Global Leaderboards to build community and competition.
+1.  **Phase 0**: Implement **Robust Persistence (Room)**. Ensure users' current progress is migrated before adding new volatile features.
+2.  **Phase 1**: Implement **Offline Progress**. It provides the immediate dopamine hit needed for Day 2 retention.
+3.  **Phase 2**: Add the **Lucky Shard**. It makes the main game screen feel alive and reactive.
+4.  **Phase 3**: Global Leaderboards to build community and competition.
