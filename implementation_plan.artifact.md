@@ -14,56 +14,42 @@ This document outlines the strategic feature additions for **Titan** based on to
 ## 📋 Feature List & Implementation Plans
 
 ### 1. Titan’s Blessing (Offline Progress)
-*   **Concept**: Reward players for the time they were away.
 *   **Priority**: High (Essential for Retention)
 *   **Implementation Plan**:
     *   **Logic**: Save `System.currentTimeMillis()` in `GameState` whenever the app closes or saves.
-    *   **Calculation**: On app launch: `offline_seconds = (now - last_save) / 1000`.
+    *   **Calculation**: `offline_seconds = (now - last_save) / 1000`.
     *   **Reward**: `shards_earned = offline_seconds * total_cps * offline_multiplier`.
-    *   **UI**: A custom "Arcane Panel" popup showing the earned shards with a "Claim" and a "Double with Ad" button.
+    *   **UI**: "Arcane Panel" popup with "Claim" and "Double with Ad".
 
 ### 2. The Lucky Shard (Active Interruption)
-*   **Concept**: A rare golden shard that spawns randomly to reward active players.
-*   **Priority**: High (Increases "Juice" & Fun)
+*   **Priority**: High (Increases "Juice")
 *   **Implementation Plan**:
-    *   **Trigger**: A 1% chance on every tap to spawn a `LuckyShard`.
-    *   **Behavior**: A golden sprite that floats across the screen for 5 seconds.
-    *   **Reward**: Tapping it triggers "Arcane Frenzy" (5x Damage for 15 seconds) or a massive shard windfall.
-    *   **UI**: Use a unique gold particle effect and a screen-edge "Frenzy" glow.
+    *   **Trigger**: 1% chance per tap to spawn a `LuckyShard`.
+    *   **Behavior**: Golden sprite floats for 5s.
+    *   **Reward**: "Arcane Frenzy" (5x Damage for 15s) or shard windfall.
 
 ### 3. Fey Quests (Daily Goals)
-*   **Concept**: Daily tasks that reset every 24 hours.
 *   **Priority**: Medium
-*   **Implementation Plan**:
-    *   **Tasks**: Examples: "Collect 10M Shards," "Tap 1,000 times," "Recruit 10 Strikers."
-    *   **Logic**: A simple list in the `UpgradesScreen`. Check progress against current session stats.
-    *   **Reward**: Small amounts of **Starlight** (the most valuable currency).
+*   **Tasks**: "Collect 10M Shards," "Tap 1,000 times," "Recruit 10 Strikers."
+*   **Reward**: **Starlight** (Premium Currency).
 
 ### 4. Spirit Harmony (Synergy Bonuses)
-*   **Concept**: Bonuses for maintaining specific ratios of Sprites.
-*   **Priority**: Medium (Adds Strategy)
-*   **Implementation Plan**:
-    *   **Logic**: In `GameState`, calculate "Harmony Levels."
-    *   **Example**: 10 Strikers + 10 Gatherers = "Working Class Harmony" (+10% Shard value).
-    *   **UI**: Add a "Harmony" indicator in the Spirit Recruitment box.
+*   **Priority**: Medium
+*   **Logic**: 10 Strikers + 10 Gatherers = "+10% Shard value."
+*   **UI**: "Harmony" indicator in recruitment box.
 
 ### 5. Global Descent Leaderboard
-*   **Concept**: Show players where they rank against the world.
-*   **Priority**: Medium (Uses existing Firebase)
-*   **Implementation Plan**:
-    *   **Logic**: Use **Firebase Realtime Database** or **Firestore** to push `deepestLayerReached` whenever a user performs a Descent.
-    *   **UI**: A simple "Rankings" button in the Constellation screen.
+*   **Priority**: Medium
+*   **Tech**: Firebase Realtime Database to push `deepestLayerReached`.
 
-### 6. More spirits
-*   **Concept**: Every descend unlock a new spirit
-*   **Priority**: low 
-*   **Implementation Plan**: Think about it
+### 6. Descent Progression Expansion
+*   **New Spirits**: Unlock a unique spirit for every Descent level.
+*   **Layer Handicaps**: Add more layers with specific damage handicaps/modifiers.
+*   **UI**: Describe layer-specific handicaps in the Descent UI.
 
-### 7. Add more descend levels
-*   **Concept**: Add more descend levels, following the exiting unique characteristic damage changes per descend.
-*   **Priority**: low 
-*   **Implementation Plan**: Think about it
-
+### 7. Statistics Screen
+*   **Concept**: Detailed breakdown of DPS/CPS calculations.
+*   **UI**: Modal triggered by clicking the DPS/CPS values.
 
 ---
 
@@ -71,9 +57,9 @@ This document outlines the strategic feature additions for **Titan** based on to
 
 | Component | Requirement |
 | :--- | :--- |
-| **Storage** | Update `GameState` and `Room` database to include `lastSaveTimestamp`. |
+| **Storage** | Update `GameState` and `Room` to include `lastSaveTimestamp`. |
 | **Analytics** | Log `lucky_shard_tapped` and `quest_completed` events. |
-| **UI** | New custom `Dialog` components for Offline Progress and Quests. |
+| **UI** | New `Dialog` components for Offline Progress, Quests, and Statistics. |
 
 ---
 
